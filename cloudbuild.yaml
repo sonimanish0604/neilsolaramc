@@ -50,3 +50,5 @@ images:
 substitutions:
   _IMAGE: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}'
   _SERVICE: 'neilsolar-${BRANCH}-api'
+options:
+  logging: CLOUD_LOGGING_ONLY
