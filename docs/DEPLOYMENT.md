@@ -14,10 +14,10 @@ We deploy 4 environments into one GCP project using strict naming + separate ser
 Use “Continuously deploy from a repository” in Cloud Run.
 
 Branch mapping:
-- develop → allsolar-dev-api
-- test → allsolar-test-api
-- staging → allsolar-staging-api
-- main → allsolar-prod-api
+- develop → neilsolar-dev-api
+- test → neilsolar-test-api
+- staging → neilsolar-staging-api
+- main → neilsolar-prod-api
 
 Build strategy:
 - Dockerfile-based build (recommended)
@@ -25,12 +25,12 @@ Build strategy:
 
 ## Per-environment resources (recommended)
 Cloud Run:
-- allsolar-<env>-api
+- neilsolar-<env>-api
 Cloud SQL:
-- allsolar-<env>-db (Postgres)
+- neilsolar-<env>-db (Postgres)
 GCS buckets:
-- allsolar-<env>-media
-- allsolar-<env>-reports
+- neilsolar-<env>-media
+- neilsolar-<env>-reports
 Secrets (Secret Manager):
 - <env>/DATABASE_URL
 - <env>/FIREBASE_PROJECT_ID
@@ -43,7 +43,7 @@ Service Accounts:
 
 ## Worker Jobs
 Cloud Run Jobs (per env):
-- allsolar-<env>-worker
+- neilsolar-<env>-worker
 Jobs executed for:
 - report generation
 - WhatsApp sending

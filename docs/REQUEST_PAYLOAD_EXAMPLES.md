@@ -114,13 +114,13 @@ Request:
   "media": [
     {
       "item_key": "net_meter_readings",
-      "object_path": "allsolar-dev-media/workorders/wo-12345/photos/net-meter-1.jpg",
+      "object_path": "neilsolar-dev-media/workorders/wo-12345/photos/net-meter-1.jpg",
       "content_type": "image/jpeg",
       "size_bytes": 245678
     },
     {
       "item_key": "earthing_status",
-      "object_path": "allsolar-dev-media/workorders/wo-12345/photos/earthing-issue.jpg",
+      "object_path": "neilsolar-dev-media/workorders/wo-12345/photos/earthing-issue.jpg",
       "content_type": "image/jpeg",
       "size_bytes": 187543
     }
@@ -129,7 +129,7 @@ Request:
   "tech_signature": {
     "signer_name": "Ravi Kumar",
     "signer_phone": "+919876543210",
-    "signature_object_path": "allsolar-dev-media/workorders/wo-12345/signatures/tech.png"
+    "signature_object_path": "neilsolar-dev-media/workorders/wo-12345/signatures/tech.png"
   }
 }
 
@@ -155,7 +155,7 @@ POST /workorders/{workorder_id}/generate-report
 Response:
 {
   "report_id": "report-uuid-123",
-  "pdf_url": "https://storage.googleapis.com/allsolar-dev-reports/..."
+  "pdf_url": "https://storage.googleapis.com/neilsolar-dev-reports/..."
 }
 
 ---
@@ -206,7 +206,7 @@ Request:
 {
   "signer_name": "Mr. Sharma",
   "signer_phone": "+919811112222",
-  "signature_object_path": "allsolar-dev-media/workorders/wo-12345/signatures/customer.png"
+  "signature_object_path": "neilsolar-dev-media/workorders/wo-12345/signatures/customer.png"
 }
 
 Response:

@@ -6,7 +6,7 @@ Conventions:
 - Approval link endpoints are token-protected and do not require JWT
 
 Base URL (per env):
-https://allsolar-<env>-api.run.app
+https://neilsolar-<env>-api.run.app
 
 ---
 

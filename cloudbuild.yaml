@@ -49,4 +49,4 @@ images:
 
 substitutions:
   _IMAGE: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}'
-  _SERVICE: 'allsolar-${BRANCH}-api'
+  _SERVICE: 'neilsolar-${BRANCH}-api'
