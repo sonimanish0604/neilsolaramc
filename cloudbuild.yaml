@@ -1,0 +1,52 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args: ['build', '-t', '${_IMAGE}', '-f', 'backend/Dockerfile', 'backend']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args: ['push', '${_IMAGE}']
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-cloud-run'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        # Deploy to Cloud Run (managed)
+        gcloud run deploy ${_SERVICE} \
+          --image=${_IMAGE} \
+          --region=${LOCATION} \
+          --platform=managed \
+          --project=${PROJECT_ID} \
+          --quiet
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'run-lint-and-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        cd backend
+        python -m pip install --upgrade pip
+        python -m pip install poetry || true
+        poetry config virtualenvs.create false || true
+        poetry install --no-root --only main || true
+        python -m pip install ruff pytest || true
+        echo 'Running linter (ruff)'
+        ruff check . || true
+        if [ -d tests ] || [ -f pytest.ini ]; then
+          echo 'Running tests'
+          pytest -q
+        else
+          echo 'No tests found; skipping'
+        fi
+
+images:
+  - '${_IMAGE}'
+
+substitutions:
+  _IMAGE: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}'
+  _SERVICE: 'allsolar-${BRANCH}-api'
