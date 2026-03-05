@@ -206,21 +206,3 @@ def downgrade():
     op.drop_table("user_roles")
     op.drop_table("users")
     op.drop_table("tenants")
-
-    -- Create roles (choose strong passwords, store in Secret Manager)
-CREATE ROLE neilsolar_app LOGIN PASSWORD '...';
-CREATE ROLE neilsolar_admin LOGIN PASSWORD '...';
-
--- Admin can bypass RLS:
-ALTER ROLE neilsolar_admin BYPASSRLS;
-
--- Grant schema usage (adjust schema if needed)
-GRANT CONNECT ON DATABASE yourdb TO neilsolar_app, neilsolar_admin;
-GRANT USAGE ON SCHEMA public TO neilsolar_app, neilsolar_admin;
-
--- Table privileges (after migrations)
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO neilsolar_app;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO neilsolar_admin;
-
--- Sequences (if any)
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO neilsolar_app, neilsolar_admin;
