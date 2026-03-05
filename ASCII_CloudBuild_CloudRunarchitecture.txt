@@ -1,0 +1,37 @@
+                          ┌───────────────────────────────┐
+                          │        GitHub Repository       │
+                          │   (neilsolaramc or similar)    │
+                          └───────────────┬───────────────┘
+                                          │
+                   push/merge to develop  │   push/merge to main
+                                          │
+                 ┌────────────────────────┴────────────────────────┐
+                 │                                                 │
+                 ▼                                                 ▼
+      ┌───────────────────────┐                        ┌───────────────────────┐
+      │ Cloud Build Trigger    │                        │ Cloud Build Trigger    │
+      │  (branch: develop)     │                        │  (branch: main)        │
+      └───────────┬───────────┘                        └───────────┬───────────┘
+                  │                                                  │
+                  ▼                                                  ▼
+      ┌───────────────────────┐                        ┌───────────────────────┐
+      │ Cloud Build Pipeline   │                        │ Cloud Build Pipeline   │
+      │  - checkout code       │                        │  - checkout code       │
+      │  - run tests (optional)│                        │  - run tests (optional)│
+      │  - docker build        │                        │  - docker build         │
+      │  - push image          │                        │  - push image           │
+      │  - deploy to Cloud Run │                        │  - deploy to Cloud Run  │
+      └───────────┬───────────┘                        └───────────┬───────────┘
+                  │                                                  │
+                  ▼                                                  ▼
+      ┌───────────────────────────────┐                ┌───────────────────────────────┐
+      │ Artifact Registry              │                │ Artifact Registry              │
+      │  neilsolar-api:<commit_sha>    │                │  neilsolar-api:<commit_sha>    │
+      └───────────┬───────────────────┘                └───────────┬───────────────────┘
+                  │                                                  │
+                  ▼                                                  ▼
+      ┌───────────────────────────────┐                ┌───────────────────────────────┐
+      │ Cloud Run Service (DEV)        │                │ Cloud Run Service (PROD)       │
+      │  neilsolar-dev-api             │                │  neilsolar-prod-api            │
+      │  URL: https://...run.app       │                │  URL: https://...run.app       │
+      └───────────────────────────────┘                └───────────────────────────────┘

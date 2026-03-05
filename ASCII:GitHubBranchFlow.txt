@@ -1,0 +1,13 @@
+Local work
+  |
+  |  create feature branch
+  v
+feature/my-feature
+  |
+  |  PR -> merge
+  v
+develop  ---------------------> auto deploy -> DEV Cloud Run
+  |
+  |  PR -> merge (release/promote)
+  v
+main     ---------------------> auto deploy -> PROD Cloud Run

@@ -27,7 +27,7 @@ steps:
           --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA} \
           --region=${_REGION} \
           --platform=managed \
-          --set-secrets=DATABASE_URL=DATABASE_URL:latest,DATABASE_ADMIN_URL=DATABASE_ADMIN_URL:latest \
+          --set-secrets=DATABASE_URL=${_DB_URL_SECRET}:latest,DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest \
           --project=${PROJECT_ID} \
           --quiet
 
@@ -91,5 +91,7 @@ substitutions:
   _AR_REPO: 'neilsolar-containers'
   _IMAGE_NAME: 'allsolar-api'
   _SERVICE: 'neilsolar-dev-api'
+  _DB_URL_SECRET: 'DATABASE_URL'
+  _DB_ADMIN_SECRET: 'DATABASE_ADMIN_URL'
 options:
   logging: CLOUD_LOGGING_ONLY

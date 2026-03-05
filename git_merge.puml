@@ -1,0 +1,28 @@
+@startuml
+title CI/CD Sequence (2 branches): develop -> DEV, main -> PROD
+
+actor Developer
+participant "GitHub" as GitHub
+participant "Cloud Build Trigger" as Trigger
+participant "Cloud Build" as CloudBuild
+participant "Artifact Registry" as AR
+participant "Cloud Run" as CloudRun
+
+Developer -> GitHub : Push / Merge commit to develop or main
+GitHub -> Trigger : Webhook event (branch + commit)
+
+Trigger -> CloudBuild : Start build (BRANCH_NAME, COMMIT_SHA)
+CloudBuild -> CloudBuild : Checkout repo
+CloudBuild -> CloudBuild : Run tests (optional)
+CloudBuild -> CloudBuild : Docker build image
+CloudBuild -> AR : Push image (tag = COMMIT_SHA)
+
+alt BRANCH_NAME == develop
+  CloudBuild -> CloudRun : Deploy to service neilsolar-dev-api
+else BRANCH_NAME == main
+  CloudBuild -> CloudRun : Deploy to service neilsolar-prod-api
+end
+
+CloudRun -> CloudRun : Start new revision, route traffic
+
+@enduml
