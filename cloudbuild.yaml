@@ -27,6 +27,7 @@ steps:
           --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA} \
           --region=${_REGION} \
           --platform=managed \
+          --set-secrets=DATABASE_URL=DATABASE_URL:latest,DATABASE_ADMIN_URL=DATABASE_ADMIN_URL:latest \
           --project=${PROJECT_ID} \
           --quiet
 
