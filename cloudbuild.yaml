@@ -31,6 +31,43 @@ steps:
           --project=${PROJECT_ID} \
           --quiet
 
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'smoke-check-health'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        SERVICE_URL="$(gcloud run services describe ${_SERVICE} \
+          --region=${_REGION} \
+          --project=${PROJECT_ID} \
+          --format='value(status.url)')"
+        HEALTH_URL="${SERVICE_URL}/health"
+
+        echo "Smoke check: ${HEALTH_URL}"
+        HTTP_CODE="$(curl -sS -o /tmp/health.out -w '%{http_code}' "${HEALTH_URL}" || true)"
+        if [ "${HTTP_CODE}" = "200" ]; then
+          cat /tmp/health.out
+          exit 0
+        fi
+
+        echo "Unauthenticated check returned HTTP ${HTTP_CODE}; retrying with identity token."
+        TOKEN="$(gcloud auth print-identity-token)"
+        HTTP_CODE_AUTH="$(curl -sS -o /tmp/health-auth.out -w '%{http_code}' \
+          -H "Authorization: Bearer ${TOKEN}" \
+          "${HEALTH_URL}" || true)"
+        if [ "${HTTP_CODE_AUTH}" = "200" ]; then
+          cat /tmp/health-auth.out
+          exit 0
+        fi
+
+        echo "Health check failed. HTTP=${HTTP_CODE}, HTTP_AUTH=${HTTP_CODE_AUTH}"
+        echo "Response (unauth):"
+        cat /tmp/health.out || true
+        echo "Response (auth):"
+        cat /tmp/health-auth.out || true
+        exit 1
+
   - name: 'python:3.11-slim'
     id: 'run-lint-and-tests'
     entrypoint: 'bash'
@@ -40,12 +77,12 @@ steps:
         set -e
         cd backend
         python -m pip install --upgrade pip
-        python -m pip install poetry || true
-        poetry config virtualenvs.create false || true
-        poetry install --no-root --only main || true
-        python -m pip install ruff pytest || true
+        python -m pip install poetry
+        poetry config virtualenvs.create false
+        poetry install --no-root --only main
+        python -m pip install ruff pytest
         echo 'Running linter (ruff)'
-        ruff check . || true
+        ruff check .
         if [ -d tests ] || [ -f pytest.ini ]; then
           echo 'Running tests'
           pytest -q
