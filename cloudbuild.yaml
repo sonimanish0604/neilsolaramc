@@ -42,26 +42,26 @@ steps:
           --region=${_REGION} \
           --project=${PROJECT_ID} \
           --format='value(status.url)')"
-        HEALTH_URL="${SERVICE_URL}/health"
+        HEALTH_URL="$${SERVICE_URL}/health"
 
-        echo "Smoke check: ${HEALTH_URL}"
-        HTTP_CODE="$(curl -sS -o /tmp/health.out -w '%{http_code}' "${HEALTH_URL}" || true)"
-        if [ "${HTTP_CODE}" = "200" ]; then
+        echo "Smoke check: $${HEALTH_URL}"
+        HTTP_CODE="$(curl -sS -o /tmp/health.out -w '%{http_code}' "$${HEALTH_URL}" || true)"
+        if [ "$${HTTP_CODE}" = "200" ]; then
           cat /tmp/health.out
           exit 0
         fi
 
-        echo "Unauthenticated check returned HTTP ${HTTP_CODE}; retrying with identity token."
+        echo "Unauthenticated check returned HTTP $${HTTP_CODE}; retrying with identity token."
         TOKEN="$(gcloud auth print-identity-token)"
         HTTP_CODE_AUTH="$(curl -sS -o /tmp/health-auth.out -w '%{http_code}' \
-          -H "Authorization: Bearer ${TOKEN}" \
-          "${HEALTH_URL}" || true)"
-        if [ "${HTTP_CODE_AUTH}" = "200" ]; then
+          -H "Authorization: Bearer $${TOKEN}" \
+          "$${HEALTH_URL}" || true)"
+        if [ "$${HTTP_CODE_AUTH}" = "200" ]; then
           cat /tmp/health-auth.out
           exit 0
         fi
 
-        echo "Health check failed. HTTP=${HTTP_CODE}, HTTP_AUTH=${HTTP_CODE_AUTH}"
+        echo "Health check failed. HTTP=$${HTTP_CODE}, HTTP_AUTH=$${HTTP_CODE_AUTH}"
         echo "Response (unauth):"
         cat /tmp/health.out || true
         echo "Response (auth):"
