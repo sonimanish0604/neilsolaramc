@@ -30,7 +30,7 @@ steps:
           --project=${PROJECT_ID} \
           --quiet
 
-  - name: 'gcr.io/cloud-builders/gcloud'
+  - name: 'python:3.11-slim'
     id: 'run-lint-and-tests'
     entrypoint: 'bash'
     args:
