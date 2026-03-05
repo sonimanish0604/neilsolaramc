@@ -1,11 +1,19 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
-    args: ['build', '-t', '${_IMAGE}', '-f', 'backend/Dockerfile', 'backend']
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
+      - '-f'
+      - 'backend/Dockerfile'
+      - 'backend'
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'push-image'
-    args: ['push', '${_IMAGE}']
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
 
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'deploy-cloud-run'
@@ -16,8 +24,8 @@ steps:
         set -e
         # Deploy to Cloud Run (managed)
         gcloud run deploy ${_SERVICE} \
-          --image=${_IMAGE} \
-          --region=${LOCATION} \
+          --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA} \
+          --region=${_REGION} \
           --platform=managed \
           --project=${PROJECT_ID} \
           --quiet
@@ -45,10 +53,12 @@ steps:
         fi
 
 images:
-  - '${_IMAGE}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
 
 substitutions:
-  _IMAGE: '${LOCATION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}'
-  _SERVICE: 'neilsolar-${BRANCH}-api'
+  _REGION: 'asia-south1'
+  _AR_REPO: 'neilsolar-containers'
+  _IMAGE_NAME: 'allsolar-api'
+  _SERVICE: 'neilsolar-dev-api'
 options:
   logging: CLOUD_LOGGING_ONLY
