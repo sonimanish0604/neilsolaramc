@@ -1,4 +1,4 @@
-from sqlalchemy import String, Text, DateTime, Numeric
+from sqlalchemy import Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 

@@ -1,0 +1,37 @@
+@startuml
+title Neil Solar (2-Branch) CI/CD: GitHub -> Cloud Build -> Artifact Registry -> Cloud Run
+
+skinparam componentStyle rectangle
+
+cloud "GitHub" as gh {
+  [Repo: neilsolaramc] as repo
+  [Branch: develop] as devBranch
+  [Branch: main] as mainBranch
+}
+
+cloud "Google Cloud" as gcp {
+  [Cloud Build Trigger\n(branch=develop)] as trigDev
+  [Cloud Build Trigger\n(branch=main)] as trigMain
+
+  [Cloud Build Pipeline\n(build/test/push/deploy)] as cb
+
+  database "Artifact Registry\n(neilsolar-api:<sha>)" as ar
+
+  [Cloud Run Service\nneilsolar-dev-api] as runDev
+  [Cloud Run Service\nneilsolar-prod-api] as runProd
+}
+
+repo --> devBranch
+repo --> mainBranch
+
+devBranch --> trigDev : push/merge
+mainBranch --> trigMain : push/merge
+
+trigDev --> cb
+trigMain --> cb
+
+cb --> ar : docker push
+ar --> runDev : deploy image (develop)
+ar --> runProd : deploy image (main)
+
+@enduml

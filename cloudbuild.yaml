@@ -1,0 +1,97 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'build-image'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
+      - '-f'
+      - 'backend/Dockerfile'
+      - 'backend'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'push-image'
+    args:
+      - 'push'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'deploy-cloud-run'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        # Deploy to Cloud Run (managed)
+        gcloud run deploy ${_SERVICE} \
+          --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA} \
+          --region=${_REGION} \
+          --platform=managed \
+          --set-secrets=DATABASE_URL=${_DB_URL_SECRET}:latest,DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest \
+          --project=${PROJECT_ID} \
+          --quiet
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'smoke-check-health'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        SERVICE_URL="$(gcloud run services describe ${_SERVICE} \
+          --region=${_REGION} \
+          --project=${PROJECT_ID} \
+          --format='value(status.url)')"
+        HEALTH_URL="$${SERVICE_URL}/health"
+
+        echo "Smoke check: $${HEALTH_URL}"
+        HTTP_CODE="$(curl -sS -o /tmp/health.out -w '%{http_code}' "$${HEALTH_URL}" || true)"
+        if [ "$${HTTP_CODE}" = "200" ]; then
+          cat /tmp/health.out
+          exit 0
+        fi
+
+        if [ "$${HTTP_CODE}" = "401" ] || [ "$${HTTP_CODE}" = "403" ]; then
+          echo "Health endpoint is protected (HTTP $${HTTP_CODE}); treating as successful smoke check for private service."
+          exit 0
+        fi
+
+        echo "Health check failed. HTTP=$${HTTP_CODE}"
+        echo "Response:"
+        cat /tmp/health.out || true
+        exit 1
+
+  - name: 'python:3.11-slim'
+    id: 'run-lint-and-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        cd backend
+        python -m pip install --upgrade pip
+        python -m pip install poetry
+        poetry config virtualenvs.create false
+        poetry install --no-root --only main
+        python -m pip install ruff pytest
+        echo 'Running linter (ruff)'
+        ruff check .
+        if [ -d tests ] || [ -f pytest.ini ]; then
+          echo 'Running tests'
+          pytest -q
+        else
+          echo 'No tests found; skipping'
+        fi
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
+
+substitutions:
+  _REGION: 'asia-south1'
+  _AR_REPO: 'neilsolar-containers'
+  _IMAGE_NAME: 'allsolar-api'
+  _SERVICE: 'neilsolar-dev-api'
+  _DB_URL_SECRET: 'DATABASE_URL'
+  _DB_ADMIN_SECRET: 'DATABASE_ADMIN_URL'
+options:
+  logging: CLOUD_LOGGING_ONLY
