@@ -1,4 +1,4 @@
-# All Solar AMC SaaS (Mobile + Web + WhatsApp Approval)
+# NEIL Solar AMC SaaS (Mobile + Web + WhatsApp Approval)
 
 White-label Solar AMC checklist platform for Indian Solar EPCs.
 Techs complete AMC visits on mobile (offline-lite), capture photos, sign digitally, generate PDF report,
@@ -132,10 +132,10 @@ Target region: asia-south1 (Mumbai)
 Resources:
 - Cloud Run service: all-solar-api (FastAPI)
 - Cloud Run job: report-worker (PDF generation, WhatsApp sends, retention cleanup)
-- Cloud SQL Postgres: all-solar-postgres
+- Cloud SQL Postgres: neil-solar-postgres
 - GCS buckets:
-  - all-solar-media (photos)
-  - all-solar-reports (pdfs)
+  - neil-solar-media (photos)
+  - neil-solar-reports (pdfs)
 - Secret Manager:
   - DATABASE_URL or DB credentials
   - WhatsApp provider creds
@@ -178,5 +178,5 @@ We do NOT implement full certification evidence collection until customer demand
 ---
 
 ## Ownership
-Project: All Solar
+Project: NEIL Solar
 Author: Manish Soni
