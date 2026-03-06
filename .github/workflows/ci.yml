@@ -34,6 +34,8 @@ jobs:
         run: ruff check .
 
       - name: Unit/API tests (pytest)
+        env:
+          PYTHONPATH: ${{ github.workspace }}/backend
         run: pytest -q --junitxml=../test-results-junit.xml
 
       - name: Upload pytest report
