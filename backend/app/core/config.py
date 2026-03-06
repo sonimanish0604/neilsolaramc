@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     gcs_reports_bucket: str = "neilsolar-dev-reports"
 
     approval_token_ttl_hours: int = 72
+    bootstrap_admin_key: str = "dev-bootstrap-key"
 
 
 settings = Settings()

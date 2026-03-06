@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: neilsolar-postgres-local
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-neilsolar_local}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-neilsolar_local}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - neilsolar_pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: neilsolar-api-local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/neilsolar_local}
+      DATABASE_ADMIN_URL: ${DATABASE_ADMIN_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/neilsolar_local}
+      BOOTSTRAP_ADMIN_KEY: ${BOOTSTRAP_ADMIN_KEY:-dev-bootstrap-key}
+      AUTH_DISABLED: ${AUTH_DISABLED:-true}
+      APP_ENV: ${APP_ENV:-local}
+    ports:
+      - "${API_PORT:-8080}:8080"
+    command: >
+      bash -lc "cd /app &&
+      PYTHONPATH=/app alembic upgrade head &&
+      PYTHONPATH=/app uvicorn app.main:app --host 0.0.0.0 --port 8080"
+
+  adminer:
+    image: adminer:4
+    container_name: neilsolar-adminer-local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "${ADMINER_PORT:-8081}:8080"
+    profiles:
+      - adminer
+
+volumes:
+  neilsolar_pgdata:

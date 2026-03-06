@@ -151,6 +151,11 @@ Environments:
 
 See /docs for architecture, threat model, and operational playbooks.
 
+## Delivery Automation
+
+- See `docs/automate_strategy.md` for the canonical automation checklist (local testing, PR checks, merge/deploy gates).
+- See `docs/testing_strategy.puml` for the visual flow diagram.
+
 ---
 
 ## Local development
