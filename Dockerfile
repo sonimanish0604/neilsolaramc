@@ -14,7 +14,7 @@ RUN python -m pip install poetry
 # Copy pyproject and install dependencies via poetry (no dev)
 COPY backend/pyproject.toml /app/pyproject.toml
 RUN poetry config virtualenvs.create false \
-  && poetry install --no-dev --no-root
+  && poetry install --only main --no-root
 
 # Copy app sources
 COPY backend/app /app/app
