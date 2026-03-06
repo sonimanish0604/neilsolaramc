@@ -40,6 +40,24 @@ Nightly worker job:
 - Mark records as deleted (or remove row) per policy
 - Write audit log entries
 
+## Tracking Issues (Must Close Before Launch)
+
+### SEC-001: Separate PROD DB Credentials From DEV
+Status: Open
+Priority: High
+
+Current temporary state:
+- `DATABASE_URL_PROD` and `DATABASE_ADMIN_URL_PROD` may reuse the same DB users/passwords as dev.
+
+Required before MVP production launch:
+1) Create prod-only DB users (app + admin).
+2) Rotate `DATABASE_URL_PROD` and `DATABASE_ADMIN_URL_PROD` to prod-only credentials.
+3) Confirm Cloud Run prod service deploys and starts with rotated secrets.
+4) Revoke old shared credentials from prod service access path.
+
+Launch gate:
+- Do not launch production until SEC-001 is completed and verified.
+
 ## Migration (single project → multi project later)
 Prereqs:
 - One terraform state per env already in place
