@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 
 class ApprovalViewOut(BaseModel):
@@ -15,6 +15,12 @@ class CustomerSignIn(BaseModel):
     signer_name: str
     signer_phone: str
     signature_object_path: str
+
+    @model_validator(mode="after")
+    def validate_png_signature(self):
+        if not self.signature_object_path.lower().endswith(".png"):
+            raise ValueError("signature_object_path must be a .png")
+        return self
 
 
 class CustomerSignOut(BaseModel):
