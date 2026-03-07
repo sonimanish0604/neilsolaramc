@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from app.core.security import verify_firebase_jwt
 from app.core.tenancy import ctx_roles, ctx_tenant_id, ctx_user_id, require_roles
@@ -13,9 +13,17 @@ from app.db.models.user import User, UserRole
 from app.db.models.workorder import (
     WorkOrder, ChecklistResponse, NetMeterReading, InverterReading, Media, Signature
 )
-from app.schemas.workorders import WorkOrderCreate, WorkOrderOut, WorkOrderSubmit
+from app.schemas.workorders import WorkOrderCreate, WorkOrderOut, WorkOrderStatusUpdate, WorkOrderSubmit
 
 router = APIRouter(prefix="/workorders", tags=["workorders"])
+
+
+def _can_transition(current_status: str, next_status: str) -> bool:
+    allowed = {
+        "SCHEDULED": {"IN_PROGRESS"},
+        "CUSTOMER_SIGNED": {"CLOSED"},
+    }
+    return next_status in allowed.get(current_status, set())
 
 
 def _load_user_and_tenant(firebase_uid: str):
@@ -128,10 +136,6 @@ def submit_workorder(workorder_id: str, payload: WorkOrderSubmit, request: Reque
 
     require_roles("TECH")
 
-    # validation: mandatory net meter photo
-    if not any(m.item_key == "net_meter_readings" for m in payload.media):
-        raise HTTPException(status_code=400, detail="Net meter photo is required")
-
     now_iso = datetime.now(timezone.utc).isoformat()
 
     with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
@@ -142,11 +146,28 @@ def submit_workorder(workorder_id: str, payload: WorkOrderSubmit, request: Reque
         if UUID(str(wo.assigned_tech_user_id)) != user_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not assigned to this workorder")
 
+        if wo.status == "SUBMITTED":
+            return {"status": "SUBMITTED", "message": "WorkOrder already submitted"}
+
+        if wo.status not in {"SCHEDULED", "IN_PROGRESS"}:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"WorkOrder cannot be submitted from status {wo.status}",
+            )
+
         wo.status = "SUBMITTED"
         wo.visit_status = payload.visit_status
         wo.summary_notes = payload.summary_notes
 
-        # Upsert checklist response (simplified MVP: insert always)
+        # Idempotent replace of submission data for this workorder.
+        db.execute(delete(ChecklistResponse).where(ChecklistResponse.workorder_id == wo.id))
+        db.execute(delete(NetMeterReading).where(NetMeterReading.workorder_id == wo.id))
+        db.execute(delete(InverterReading).where(InverterReading.workorder_id == wo.id))
+        db.execute(delete(Media).where(Media.workorder_id == wo.id))
+        db.execute(
+            delete(Signature).where(Signature.workorder_id == wo.id, Signature.signer_role == "TECH")
+        )
+
         db.add(ChecklistResponse(
             tenant_id=tenant_id,
             workorder_id=wo.id,
@@ -195,3 +216,44 @@ def submit_workorder(workorder_id: str, payload: WorkOrderSubmit, request: Reque
         ))
 
         return {"status": "SUBMITTED", "message": "WorkOrder submitted successfully"}
+
+
+@router.patch("/{workorder_id}/status", response_model=WorkOrderOut)
+def update_workorder_status(workorder_id: str, payload: WorkOrderStatusUpdate, request: Request):
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        wo = db.execute(select(WorkOrder).where(WorkOrder.id == UUID(workorder_id))).scalar_one_or_none()
+        if not wo:
+            raise HTTPException(status_code=404, detail="WorkOrder not found")
+
+        target = payload.status
+        require_roles("OWNER", "SUPERVISOR", "TECH")
+
+        if target == "IN_PROGRESS":
+            if "TECH" in roles and UUID(str(wo.assigned_tech_user_id)) != user_id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not assigned to this workorder")
+        elif target == "CLOSED":
+            require_roles("OWNER", "SUPERVISOR")
+
+        if not _can_transition(wo.status, target):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid status transition {wo.status} -> {target}",
+            )
+
+        wo.status = target
+        return WorkOrderOut(
+            id=str(wo.id),
+            site_id=str(wo.site_id),
+            assigned_tech_user_id=str(wo.assigned_tech_user_id),
+            scheduled_at=wo.scheduled_at,
+            status=wo.status,
+            visit_status=wo.visit_status,
+            summary_notes=wo.summary_notes,
+        )

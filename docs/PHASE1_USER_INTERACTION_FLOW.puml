@@ -1,0 +1,85 @@
+@startuml
+title NEIL Solar AMC - Unified User Interaction Flow (Phase 1)
+
+left to right direction
+
+actor Owner
+actor Manager
+actor Supervisor
+actor Technician
+actor CustomerSupervisor as Customer
+
+rectangle "FlutterFlow Owner/Manager Portal" as OwnerPortal
+rectangle "FlutterFlow Supervisor/Technician App" as FieldApp
+rectangle "Customer Mobile Web" as CustomerWeb
+
+rectangle "FastAPI Backend (Cloud Run)" as API
+rectangle "Cloud SQL Postgres" as DB
+rectangle "GCS Media Bucket" as GCSMedia
+rectangle "GCS Reports Bucket" as GCSReports
+rectangle "Twilio WhatsApp Sandbox" as Twilio
+
+Owner --> OwnerPortal : signup/login
+OwnerPortal --> API : create organization
+API --> DB : persist tenant + owner user
+API --> OwnerPortal : verification / next steps
+
+Owner --> OwnerPortal : create users and roles
+OwnerPortal --> API : invite manager/supervisor users
+API --> DB : users, roles, invitations
+
+Manager --> OwnerPortal : login
+Manager --> OwnerPortal : create customers
+OwnerPortal --> API : customer CRUD
+API --> DB : customers
+
+Manager --> OwnerPortal : create AMC sites
+OwnerPortal --> API : site CRUD
+API --> DB : sites + site supervisor details
+
+Supervisor --> FieldApp : login
+Supervisor --> FieldApp : create/invite technicians
+FieldApp --> API : user role = TECH
+API --> DB : user_roles, invitations
+
+Supervisor --> FieldApp : assign technician to site
+FieldApp --> API : create workorder + assignment
+API --> DB : work_orders (SCHEDULED)
+
+Technician --> FieldApp : view assigned workorders
+FieldApp --> API : fetch assigned list
+API --> DB : query work_orders
+
+Technician --> FieldApp : complete checklist + photos + tech sign
+FieldApp --> API : submit checklist response (idempotent)
+API --> DB : checklist_responses, signatures(TECH)
+API --> GCSMedia : store photo/signature objects
+API --> DB : update workorder (SUBMITTED)
+
+API --> GCSReports : generate and store draft PDF
+API --> DB : report record (is_final=false)
+
+API --> Twilio : send approval link via WhatsApp
+Twilio --> Customer : WhatsApp message with tokenized link
+API --> DB : approval_events (SENT, expires_in=72h)
+
+Customer --> CustomerWeb : open approval link
+CustomerWeb --> API : validate token
+API --> DB : token status OPENED if valid
+
+Customer --> CustomerWeb : sign report (single-use token)
+CustomerWeb --> API : submit customer signature PNG
+API --> DB : signatures(CUSTOMER_SUPERVISOR)
+API --> GCSMedia : store customer signature
+API --> GCSReports : regenerate final signed PDF
+API --> DB : report is_final=true
+API --> DB : workorder CUSTOMER_SIGNED -> CLOSED
+API --> DB : approval_events SIGNED (token consumed)
+
+Owner --> OwnerPortal : view reports and customer/site status
+OwnerPortal --> API : report and visit queries
+API --> DB : fetch reports/workorders
+API --> GCSReports : signed URL access for PDF
+
+@enduml
+
