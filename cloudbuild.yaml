@@ -104,7 +104,9 @@ steps:
           --format='value(status.url)')"
         REPORT_BRANCH="$${BRANCH_NAME:-manual}"
         export SERVICE_URL REPORT_BRANCH REPORT_DIR=/workspace/reports
+        export BUILD_ID="${BUILD_ID}"
         export POST_DEPLOY_ADMIN_KEY="${_POST_DEPLOY_ADMIN_KEY}"
+        export RUN_STATEFUL_POST_DEPLOY_TESTS="${_RUN_STATEFUL_POST_DEPLOY_TESTS}"
         bash scripts/post_deploy_cloud_tests.sh
 
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -175,5 +177,6 @@ substitutions:
   _DB_ADMIN_SECRET: 'DATABASE_ADMIN_URL'
   _REPORTS_BUCKET: 'neilsolar-ci-reports'
   _POST_DEPLOY_ADMIN_KEY: 'dev-bootstrap-key'
+  _RUN_STATEFUL_POST_DEPLOY_TESTS: 'true'
 options:
   logging: CLOUD_LOGGING_ONLY
