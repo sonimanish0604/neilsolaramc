@@ -15,7 +15,9 @@ SUMMARY_FILE="${SUMMARY_FILE:-${REPORT_DIR}/functional_summary.md}"
 JUNIT_FILE="${JUNIT_FILE:-${REPORT_DIR}/functional_junit.xml}"
 EXIT_FILE="${EXIT_FILE:-${REPORT_DIR}/functional_exit_code.txt}"
 SUITE_TITLE="${SUITE_TITLE:-Functional Use Case Test Summary}"
-SCENARIOS="${SCENARIOS:-uc_1a_001_tenant_onboarding uc_1a_002_customer_site_flow uc_1a_003_tech_submit_validation}"
+# Use default only when SCENARIOS is unset.
+# If SCENARIOS is intentionally set to an empty string, run preflight-only.
+SCENARIOS="${SCENARIOS-uc_1a_001_tenant_onboarding uc_1a_002_customer_site_flow uc_1a_003_tech_submit_validation}"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -73,4 +75,3 @@ cat "${SUMMARY_FILE}"
 if [[ "$(cat "${EXIT_FILE}")" != "0" ]]; then
   exit 1
 fi
-
