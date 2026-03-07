@@ -1,186 +1,119 @@
 # NEIL Solar AMC SaaS (Mobile + Web + WhatsApp Approval)
 
 White-label Solar AMC checklist platform for Indian Solar EPCs.
-Techs complete AMC visits on mobile (offline-lite), capture photos, sign digitally, generate PDF report,
-and send WhatsApp approval link to the customer site supervisor who signs on phone.
+Technicians complete AMC visits on mobile (offline-lite), capture photos, sign digitally, generate PDF reports,
+and send a WhatsApp approval link to the customer site supervisor for final signature.
 
-Stack:
-- Mobile/Web UI: FlutterFlow (client)
+## Current Product Scope
+- Frontend: FlutterFlow apps (Owner/Manager/Supervisor/Technician flows) and customer mobile web signing flow
+- Backend: FastAPI (Cloud Run) + Cloud SQL Postgres + GCS media/report storage
 - Auth: Firebase Auth
-- Backend API: FastAPI (Python)
-- DB: Cloud SQL Postgres (GCP)
-- Media/PDF: Google Cloud Storage (GCS)
-- Async Jobs: Cloud Run Jobs (or Cloud Tasks + worker)
-- IaC: Terraform (GCP)
+- Async: Cloud Run Jobs (migrations, report/signature processing, messaging tasks)
+- Region target: `asia-south1` (Mumbai)
 
-Data residency target: India (GCP region asia-south1 / Mumbai).
-
----
-
-## Branching strategy (Git)
-We use 4 long-lived branches:
-- develop: active development
-- test: integration testing (QA, smoke tests)
-- staging: production-like, pre-release validation
-- main: live production releases
+## Branching and Release Strategy (MVP)
+Active long-lived branches:
+- `develop` (active development + dev deploy)
+- `main` (production release)
 
 Rules:
-- Work is done in feature branches: feature/<short-name>
-- Every change uses an Issue + PR
-- Merge order: develop -> test -> staging -> main
-- Tag releases on production: vX.Y.Z
+- Work from feature branches: `feature/<short-name>`
+- Every change via Issue + PR
+- Promotion path: `feature/*` -> `develop` -> `main`
 
----
+## CI/CD Baseline (Phase 0 complete)
+- Cloud Build deploys from repo `cloudbuild.yaml`
+- DB migrations run before service deploy via Cloud Run Job
+- Post-deploy reports upload to `gs://neilsolar-ci-reports/...`
+- `develop` runs full stateful post-deploy API tests
+- `main` runs smoke-only post-deploy checks (`_RUN_STATEFUL_POST_DEPLOY_TESTS=false`)
 
-## High-level architecture
+## Phase Roadmap
 
-Clients
-- FlutterFlow Technician Mobile App (Android first; iOS supported)
-- FlutterFlow Owner/Supervisor Web Portal
-- Customer Supervisor: no app required (tokenized mobile web approval link)
+### Phase 0 (Delivered)
+Secure control-plane foundation:
+- Firebase JWT verification
+- Tenant/user/role model with tenant isolation
+- Baseline audit logging and deployment automation
 
-Backend (Application Plane)
-- FastAPI REST API (Cloud Run)
-- Postgres (Cloud SQL): tenant-safe relational model
-- GCS bucket: photos + PDFs; Postgres stores metadata + hashes + URLs
+### Phase 1A (In progress next)
+Core application-plane APIs and technician submission path:
+- Customer and Site CRUD
+- WorkOrder create/assign/list/status transitions
+- Checklist submission (idempotent) + media metadata capture
+- Technician signature ingestion (`PNG` contract)
+- Tests for happy/rainy paths in CI and post-deploy
 
-Control Plane (SaaS)
-- Tenant (Organization) management
-- User + Role-based access control (Owner/Supervisor/Tech/Customer)
-- Plan limits (max customers/sites/users/photos; retention days)
-- Telemetry events (basic)
+### Phase 1B
+Approval and report completion path:
+- PDF generation (tech-signed and customer-signed variants)
+- WhatsApp approval link delivery using Twilio Sandbox
+- Tokenized approval flow with:
+  - TTL = `72h`
+  - single-use token after successful customer signature
+- Final signed PDF regeneration and WorkOrder closure
+- Branded/logo report layout
 
-Async
-- Report generation (HTML -> PDF)
-- WhatsApp approval link delivery
-- Retention cleanup (delete expired PDFs/photos)
+### Phase 1C
+Stability and hardening:
+- Retry and failure handling for async/report/messaging steps
+- Approval token expiry/revocation and operational runbook coverage
+- Stronger stateful post-deploy test coverage and regression gates
 
----
+## Checklist Extensibility Foundation (Future-proofing)
+To support future verticals (solar, elevators, telecom towers, generators) without schema rewrites:
+- Keep checklist definitions row-based (`checklist_templates`, `checklist_items`) instead of hardcoded columns.
+- Persist answers in structured payload form (`checklist_responses.answers_json`) keyed by stable `item_key`.
+- Allow tenant-specific template versions and optional additional fields over time.
+- Preserve backward compatibility by versioning templates and storing `template_version` per response.
 
-## Phase plan (build order)
+## Key Domain Entities (Simplified)
 
-### Phase 0 — Minimum control-plane skeleton (MUST HAVE)
-Goal: secure multi-tenant foundation, minimal friction.
-- Firebase Auth integration (JWT verification in FastAPI)
-- Tenant + Users + Roles + tenant isolation (tenant_id everywhere)
-- Basic admin endpoints (create tenant/users manually for pilot)
-- Audit log table (append-only)
+Control plane:
+- `tenants`, `users`, `roles`, `invitations`, `plan_limits`, `audit_log`
 
-### Phase 1 — Application plane MVP (THE PRODUCT)
-Goal: end-to-end flow works.
-Owner/Supervisor (web):
-- CRUD Customers, Sites
-- Create WorkOrders (AMC visits), assign technician
-Technician (mobile):
-- List assigned WorkOrders
-- Offline-lite checklist execution + photo capture (max 20)
-- Technician signature
-Backend:
-- Submit checklist response + media metadata
-- Generate PDF report
-- Send WhatsApp approval link (tokenized)
-Customer Supervisor:
-- Open link, view summary + PDF, sign digitally on phone
-- Backend regenerates final signed PDF, closes workorder
-
-### Phase 2 — SaaS hardening
-- Self-serve tenant onboarding + invitations
-- Plan limits enforced across endpoints
-- Telemetry + basic admin dashboard
-- Rate limiting + abuse protection
-
-### Phase 3 — Billing + advanced compliance
-- Payments + invoices
-- Full SOC2/ISO27001 evidence program (optional based on customer demand)
-
----
-
-## Key domain entities (simplified)
-
-Control Plane:
-- tenants, users, roles, invitations, plan_limits, audit_log
-
-Application Plane:
-- customers
-- sites (with site_supervisor_name + site_supervisor_phone)
-- checklist_templates + checklist_items (same template for all sites)
-- work_orders (AMC visits)
-- checklist_responses (JSON)
-- media (photos)
-- signatures (TECH + CUSTOMER_SUPERVISOR)
-- reports (pdf_url + hash + pass/fail counts)
-- approval_events (whatsapp token, expiry, opened/signed)
+Application plane:
+- `customers`
+- `sites` (including supervisor contact details)
+- `checklist_templates`, `checklist_items`
+- `work_orders`
+- `checklist_responses`
+- `media`
+- `signatures` (`TECH`, `CUSTOMER_SUPERVISOR`)
+- `reports`
+- `approval_events` (token, expiry, opened/signed state)
 
 WorkOrder lifecycle:
-SCHEDULED -> IN_PROGRESS -> SUBMITTED -> CUSTOMER_SIGNED -> CLOSED
+`SCHEDULED -> IN_PROGRESS -> SUBMITTED -> CUSTOMER_SIGNED -> CLOSED`
 
----
+## Storage Strategy
+- Do not store blobs in Postgres
+- Store photos and PDFs in GCS buckets
+- Store metadata, hashes, and object references in Postgres
 
-## Storage strategy (cost + performance)
-- DO NOT store blobs in Postgres.
-- Photos/PDFs go to GCS.
-- Postgres stores metadata + signed URLs + sha256 hashes.
+## UI Flow References (FlutterFlow planning)
+- `docs/solaramcapp-owner-login.drawio.png`
+- `solaramcapp-manager-tasks.drawio.png`
+- `solaramcapp-supervisor-tasks.drawio.png`
+- `solaramcapp-customer-login.drawio.png`
 
-Signed URL access is preferred to reduce backend egress and CPU.
+## Canonical Docs
+- `docs/ARCHITECTURE.md`
+- `docs/PRODUCT_VALUE_PROPOSITION.md`
+- `docs/automate_strategy.md`
+- `docs/AI_WORKFLOW_RULES.md`
+- `docs/PHASE1A_LOCAL_TESTING.md`
+- `docs/PHASE1_USE_CASE_TESTS.md`
 
----
-
-## GCP deployment (Terraform-managed)
-
-Target region: asia-south1 (Mumbai)
-
-Resources:
-- Cloud Run service: all-solar-api (FastAPI)
-- Cloud Run job: report-worker (PDF generation, WhatsApp sends, retention cleanup)
-- Cloud SQL Postgres: neil-solar-postgres
-- GCS buckets:
-  - neil-solar-media (photos)
-  - neil-solar-reports (pdfs)
-- Secret Manager:
-  - DATABASE_URL or DB credentials
-  - WhatsApp provider creds
-  - JWT config (Firebase project details as needed)
-
-Environments:
-- dev, test, staging, prod (each has its own Cloud Run + Cloud SQL + buckets)
-- Use separate GCP projects for staging/prod if possible; otherwise separate naming + IAM boundaries.
-
----
-
-## Repo structure
-
-See /docs for architecture, threat model, and operational playbooks.
-
-## Delivery Automation
-
-- See `docs/automate_strategy.md` for the canonical automation checklist (local testing, PR checks, merge/deploy gates).
-- See `docs/testing_strategy.puml` for the visual flow diagram.
-
----
-
-## Local development
+## Local Development
 - Python 3.11+
 - Docker
-- Postgres local (docker compose)
+- Postgres (docker compose)
 
-Commands:
-- make setup
-- make dev
-- make test
-
----
-
-## Compliance posture (SOC2/ISO27001-ready engineering)
-We implement:
-- Audit logging
-- RBAC
-- Secrets management
-- Backups and retention
-- PR-based change control
-
-We do NOT implement full certification evidence collection until customer demand requires it.
-
----
+Typical commands:
+- `make setup`
+- `make dev`
+- `make test`
 
 ## Ownership
 Project: NEIL Solar

@@ -25,9 +25,15 @@ def set_rls_context(db: Session, tenant_id: UUID, user_id: Optional[UUID] = None
     Must be called inside a transaction.
     Uses SET LOCAL so it only applies to this transaction/request.
     """
-    db.execute(text("SET LOCAL app.tenant_id = :tenant_id"), {"tenant_id": str(tenant_id)})
+    db.execute(
+        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+        {"tenant_id": str(tenant_id)},
+    )
     if user_id:
-        db.execute(text("SET LOCAL app.user_id = :user_id"), {"user_id": str(user_id)})
+        db.execute(
+            text("SELECT set_config('app.user_id', :user_id, true)"),
+            {"user_id": str(user_id)},
+        )
 
 
 @contextmanager
