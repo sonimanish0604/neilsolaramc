@@ -28,9 +28,10 @@ steps:
           --region=${_REGION} \
           --project=${PROJECT_ID} \
           --set-cloudsql-instances=${_CLOUDSQL_INSTANCE} \
+          --set-env-vars=PYTHONPATH=/app \
           --set-secrets=DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest,DATABASE_URL=${_DB_ADMIN_SECRET}:latest \
-          --command=alembic \
-          --args=upgrade,head \
+          --command=python \
+          --args=-m,alembic,-c,/app/alembic.ini,upgrade,head \
           --task-timeout=600s \
           --max-retries=0 \
           --quiet
