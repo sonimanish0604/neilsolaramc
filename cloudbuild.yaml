@@ -27,7 +27,7 @@ steps:
           --image="$${IMAGE}" \
           --region=${_REGION} \
           --project=${PROJECT_ID} \
-          --add-cloudsql-instances=${_CLOUDSQL_INSTANCE} \
+          --set-cloudsql-instances=${_CLOUDSQL_INSTANCE} \
           --set-secrets=DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest,DATABASE_URL=${_DB_ADMIN_SECRET}:latest \
           --command=alembic \
           --args=upgrade,head \
