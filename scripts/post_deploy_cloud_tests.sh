@@ -5,6 +5,7 @@ SERVICE_URL="${SERVICE_URL:?SERVICE_URL is required}"
 REPORT_DIR="${REPORT_DIR:-/workspace/reports}"
 REPORT_BRANCH="${REPORT_BRANCH:-manual}"
 ADMIN_KEY="${POST_DEPLOY_ADMIN_KEY:-dev-bootstrap-key}"
+RUN_STATEFUL_TESTS="${RUN_STATEFUL_POST_DEPLOY_TESTS:-false}"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -63,12 +64,18 @@ run_test "ready endpoint" "200|401|403" "${READY_CODE}"
 NOTFOUND_CODE="$(http_code GET "${SERVICE_URL}/__nonexistent__" "" "${REPORT_DIR}/notfound.out")"
 run_test "non-existent endpoint returns 404" "404|401|403" "${NOTFOUND_CODE}"
 
-# 2) Dev-only mutation checks with controlled payloads.
-if [[ "${REPORT_BRANCH}" == "develop" ]]; then
-  TENANT_NAME="ci-tenant-${BUILD_ID:-manual}"
+# 2) Optional mutation checks for business APIs.
+if [[ "${RUN_STATEFUL_TESTS}" == "true" ]]; then
+  TENANT_NAME="ci-tenant-${REPORT_BRANCH}-${BUILD_ID:-manual}-$(date +%s)"
   TENANT_PAYLOAD="{\"name\":\"${TENANT_NAME}\",\"plan_code\":\"TRIAL\",\"status\":\"ACTIVE\"}"
   TENANT_CODE="$(http_code POST "${SERVICE_URL}/admin/tenants" "${TENANT_PAYLOAD}" "${REPORT_DIR}/tenant.out" "true")"
-  run_test "admin create tenant (develop only)" "200|409|401|403" "${TENANT_CODE}"
+  run_test "admin create tenant (happy path)" "200" "${TENANT_CODE}"
+
+  TENANT_DUP_CODE="$(http_code POST "${SERVICE_URL}/admin/tenants" "${TENANT_PAYLOAD}" "${REPORT_DIR}/tenant_duplicate.out" "true")"
+  run_test "admin create tenant duplicate (rainy path)" "409" "${TENANT_DUP_CODE}"
+
+  TENANT_NO_KEY_CODE="$(http_code POST "${SERVICE_URL}/admin/tenants" "${TENANT_PAYLOAD}" "${REPORT_DIR}/tenant_missing_key.out" "false")"
+  run_test "admin create tenant without admin key (rainy path)" "401|403" "${TENANT_NO_KEY_CODE}"
 fi
 
 # Build markdown summary.
