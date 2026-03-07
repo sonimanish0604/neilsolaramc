@@ -27,6 +27,7 @@ steps:
           --image="$${IMAGE}" \
           --region=${_REGION} \
           --project=${PROJECT_ID} \
+          --service-account=${_RUNTIME_SA} \
           --set-cloudsql-instances=${_CLOUDSQL_INSTANCE} \
           --set-env-vars=PYTHONPATH=/app \
           --set-secrets=DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest,DATABASE_URL=${_DB_ADMIN_SECRET}:latest \
@@ -54,6 +55,8 @@ steps:
           --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA} \
           --region=${_REGION} \
           --platform=managed \
+          --service-account=${_RUNTIME_SA} \
+          --add-cloudsql-instances=${_CLOUDSQL_INSTANCE} \
           --set-secrets=DATABASE_URL=${_DB_URL_SECRET}:latest,DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest \
           --project=${PROJECT_ID} \
           --quiet
@@ -165,6 +168,7 @@ substitutions:
   _AR_REPO: 'neilsolar-containers'
   _IMAGE_NAME: 'allsolar-api'
   _SERVICE: 'neilsolar-dev-api'
+  _RUNTIME_SA: '174945359533-compute@developer.gserviceaccount.com'
   _MIGRATION_JOB: 'neilsolar-dev-db-migrate'
   _CLOUDSQL_INSTANCE: 'solar-amc-app-xkoe90:asia-south1:neilsolar-amc'
   _DB_URL_SECRET: 'DATABASE_URL'
