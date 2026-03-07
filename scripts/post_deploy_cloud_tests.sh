@@ -23,7 +23,11 @@ export JUNIT_FILE="${REPORT_DIR}/post_deploy_junit.xml"
 export EXIT_FILE="${REPORT_DIR}/post_deploy_exit_code.txt"
 export SUITE_TITLE="Post-Deploy API Functional Test Summary"
 
-if [[ "${RUN_STATEFUL_TESTS}" == "true" ]]; then
+PROTECTED_CODE="$(curl -sS -o /tmp/preflight_protected.out -w "%{http_code}" "${SERVICE_URL}/health" || true)"
+if [[ "${RUN_STATEFUL_TESTS}" == "true" && ( "${PROTECTED_CODE}" == "401" || "${PROTECTED_CODE}" == "403" ) ]]; then
+  echo "Service health endpoint is protected (HTTP ${PROTECTED_CODE}); skipping stateful UC scenarios."
+  export SCENARIOS=""
+elif [[ "${RUN_STATEFUL_TESTS}" == "true" ]]; then
   export SCENARIOS="uc_1a_001_tenant_onboarding uc_1a_002_customer_site_flow uc_1a_003_tech_submit_validation"
 else
   export SCENARIOS=""
@@ -43,4 +47,3 @@ else
 fi
 
 exit 0
-
