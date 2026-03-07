@@ -16,6 +16,34 @@ steps:
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
 
   - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'run-db-migrations'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        IMAGE="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}"
+        gcloud run jobs deploy ${_MIGRATION_JOB} \
+          --image="$${IMAGE}" \
+          --region=${_REGION} \
+          --project=${PROJECT_ID} \
+          --service-account=${_RUNTIME_SA} \
+          --set-cloudsql-instances=${_CLOUDSQL_INSTANCE} \
+          --set-env-vars=PYTHONPATH=/app \
+          --set-secrets=DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest,DATABASE_URL=${_DB_ADMIN_SECRET}:latest \
+          --command=python \
+          --args=-m,alembic,-c,/app/alembic.ini,upgrade,head \
+          --task-timeout=600s \
+          --max-retries=0 \
+          --quiet
+
+        gcloud run jobs execute ${_MIGRATION_JOB} \
+          --region=${_REGION} \
+          --project=${PROJECT_ID} \
+          --wait \
+          --quiet
+
+  - name: 'gcr.io/cloud-builders/gcloud'
     id: 'deploy-cloud-run'
     entrypoint: 'bash'
     args:
@@ -27,6 +55,8 @@ steps:
           --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA} \
           --region=${_REGION} \
           --platform=managed \
+          --service-account=${_RUNTIME_SA} \
+          --add-cloudsql-instances=${_CLOUDSQL_INSTANCE} \
           --set-secrets=DATABASE_URL=${_DB_URL_SECRET}:latest,DATABASE_ADMIN_URL=${_DB_ADMIN_SECRET}:latest \
           --project=${PROJECT_ID} \
           --quiet
@@ -61,6 +91,54 @@ steps:
         cat /tmp/health.out || true
         exit 1
 
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'post-deploy-api-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        SERVICE_URL="$(gcloud run services describe ${_SERVICE} \
+          --region=${_REGION} \
+          --project=${PROJECT_ID} \
+          --format='value(status.url)')"
+        REPORT_BRANCH="$${BRANCH_NAME:-manual}"
+        export SERVICE_URL REPORT_BRANCH REPORT_DIR=/workspace/reports
+        export BUILD_ID="${BUILD_ID}"
+        export POST_DEPLOY_ADMIN_KEY="${_POST_DEPLOY_ADMIN_KEY}"
+        export RUN_STATEFUL_POST_DEPLOY_TESTS="${_RUN_STATEFUL_POST_DEPLOY_TESTS}"
+        bash scripts/post_deploy_cloud_tests.sh
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'upload-post-deploy-reports'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        REPORT_BRANCH="$${BRANCH_NAME:-manual}"
+        DEST="gs://${_REPORTS_BUCKET}/$${REPORT_BRANCH}/${_SERVICE}/${BUILD_ID}"
+        gsutil -m cp /workspace/reports/post_deploy_summary.md "$${DEST}/"
+        gsutil -m cp /workspace/reports/post_deploy_junit.xml "$${DEST}/"
+        gsutil -m cp /workspace/reports/post_deploy_exit_code.txt "$${DEST}/"
+        echo "Post-deploy reports uploaded:"
+        echo "$${DEST}/post_deploy_summary.md"
+        echo "$${DEST}/post_deploy_junit.xml"
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'enforce-post-deploy-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        EXIT_CODE="$$(cat /workspace/reports/post_deploy_exit_code.txt)"
+        if [ "$${EXIT_CODE}" != "0" ]; then
+          echo "Post-deploy API tests reported failures."
+          exit 1
+        fi
+        echo "Post-deploy API tests passed."
+
   - name: 'python:3.11-slim'
     id: 'run-lint-and-tests'
     entrypoint: 'bash'
@@ -69,6 +147,7 @@ steps:
       - |
         set -e
         cd backend
+        export PYTHONPATH="$$(pwd)"
         python -m pip install --upgrade pip
         python -m pip install poetry
         poetry config virtualenvs.create false
@@ -91,7 +170,13 @@ substitutions:
   _AR_REPO: 'neilsolar-containers'
   _IMAGE_NAME: 'allsolar-api'
   _SERVICE: 'neilsolar-dev-api'
+  _RUNTIME_SA: '174945359533-compute@developer.gserviceaccount.com'
+  _MIGRATION_JOB: 'neilsolar-dev-db-migrate'
+  _CLOUDSQL_INSTANCE: 'solar-amc-app-xkoe90:asia-south1:neilsolar-amc'
   _DB_URL_SECRET: 'DATABASE_URL'
   _DB_ADMIN_SECRET: 'DATABASE_ADMIN_URL'
+  _REPORTS_BUCKET: 'neilsolar-ci-reports'
+  _POST_DEPLOY_ADMIN_KEY: 'dev-bootstrap-key'
+  _RUN_STATEFUL_POST_DEPLOY_TESTS: 'true'
 options:
   logging: CLOUD_LOGGING_ONLY

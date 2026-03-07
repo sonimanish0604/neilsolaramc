@@ -15,8 +15,6 @@ dist/
 .env
 .env.local
 .DS_Store
-screencapture-*.png
-docs/screencapture-*.png
 /.idea/
 /.vscode/
 secrets/*.json
@@ -28,4 +26,4 @@ coverage.xml
 htmlcov/
 instance/
 pyproject.lock
-docs/screencapture-*.png
+/home/aegis/code/all-solar-amc-SaaS/docs/screencapture-console-cloud-google-sql-instances-neilsolar-amc-connections-summary-2026-03-06-16_28_46.png

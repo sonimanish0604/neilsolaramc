@@ -1,0 +1,127 @@
+@startuml
+title Test Strategy Flow (dev and main branches)
+
+start
+
+:Developer pulls latest dev;
+:Create local feature branch;
+:Implement feature;
+
+partition "Local Laptop" {
+  :Start Docker Compose;
+  note right
+    Services:
+    - FastAPI
+    - Postgres
+    - Adminer (optional)
+  end note
+
+  :Run local checks;
+  if (Local checks pass?) then (yes)
+    :Local checks include:
+    - lint
+    - unit tests
+    - migrations
+    - /health
+    - API happy path
+    - API unhappy path;
+  else (no)
+    :Fix code locally;
+    stop
+  endif
+}
+
+:Open PR to dev;
+
+partition "PR / CI for dev" {
+  :Run blocking PR checks;
+  note right
+    Blocking checks:
+    - lint
+    - unit tests
+    - integration/API tests
+    - migration test
+    - Docker build validation
+  end note
+
+  if (Blocking PR checks pass?) then (yes)
+    :Allow merge to dev;
+  else (no)
+    :Reject merge;
+    stop
+  endif
+}
+
+:Merge to dev;
+
+partition "Post-merge deploy to dev" {
+  :Cloud Build triggered from dev;
+  :Build FastAPI image;
+  :Push image to Artifact Registry;
+  :Deploy to Cloud Run dev;
+  :Inject dev secrets;
+  :Connect to Cloud SQL dev;
+
+  :Run blocking post-deploy checks;
+  note right
+    Blocking post-dev checks:
+    - /health
+    - /version
+    - basic DB connectivity smoke
+  end note
+
+  if (Blocking post-deploy checks pass?) then (yes)
+    :Run optional non-blocking dev checks;
+    note right
+      Non-blocking dev checks:
+      - extended API sanity checks
+      - Swagger reachability
+      - response contract checks
+      - diagnostics/reporting
+    end note
+  else (no)
+    :Mark dev deployment failed;
+    stop
+  endif
+}
+
+if (Dev validated and ready for production?) then (yes)
+  :Merge dev to main;
+else (no)
+  :Continue dev stabilization;
+  stop
+endif
+
+partition "Post-merge deploy to main" {
+  :Cloud Build triggered from main;
+  :Build FastAPI image;
+  :Push image to Artifact Registry;
+  :Deploy to Cloud Run prod;
+  :Inject prod secrets;
+  :Connect to Cloud SQL prod;
+
+  :Run blocking production smoke checks;
+  note right
+    Blocking prod checks:
+    - /health
+    - /version
+    - minimal readiness check
+  end note
+
+  if (Blocking production checks pass?) then (yes)
+    :Run optional non-blocking prod checks;
+    note right
+      Non-blocking prod checks:
+      - safe read-only verification
+      - monitoring/log visibility
+    end note
+  else (no)
+    :Mark prod deployment failed;
+    stop
+  endif
+}
+
+:Deployment cycle complete;
+stop
+
+@enduml
