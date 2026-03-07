@@ -15,6 +15,24 @@ steps:
       - 'push'
       - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
 
+  - name: 'python:3.11-slim'
+    id: 'run-db-migrations'
+    secretEnv: ['DATABASE_ADMIN_URL_MIGRATION']
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        cd backend
+        export PYTHONPATH="$$(pwd)"
+        export DATABASE_ADMIN_URL="$${DATABASE_ADMIN_URL_MIGRATION}"
+        export DATABASE_URL="$${DATABASE_ADMIN_URL_MIGRATION}"
+        python -m pip install --upgrade pip
+        python -m pip install poetry
+        poetry config virtualenvs.create false
+        poetry install --no-root --only main
+        poetry run alembic upgrade head
+
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'deploy-cloud-run'
     entrypoint: 'bash'
@@ -61,6 +79,52 @@ steps:
         cat /tmp/health.out || true
         exit 1
 
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'post-deploy-api-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        SERVICE_URL="$(gcloud run services describe ${_SERVICE} \
+          --region=${_REGION} \
+          --project=${PROJECT_ID} \
+          --format='value(status.url)')"
+        REPORT_BRANCH="$${BRANCH_NAME:-manual}"
+        export SERVICE_URL REPORT_BRANCH REPORT_DIR=/workspace/reports
+        export POST_DEPLOY_ADMIN_KEY="${_POST_DEPLOY_ADMIN_KEY}"
+        bash scripts/post_deploy_cloud_tests.sh
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'upload-post-deploy-reports'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        REPORT_BRANCH="$${BRANCH_NAME:-manual}"
+        DEST="gs://${_REPORTS_BUCKET}/$${REPORT_BRANCH}/${_SERVICE}/${BUILD_ID}"
+        gsutil -m cp /workspace/reports/post_deploy_summary.md "$${DEST}/"
+        gsutil -m cp /workspace/reports/post_deploy_junit.xml "$${DEST}/"
+        gsutil -m cp /workspace/reports/post_deploy_exit_code.txt "$${DEST}/"
+        echo "Post-deploy reports uploaded:"
+        echo "$${DEST}/post_deploy_summary.md"
+        echo "$${DEST}/post_deploy_junit.xml"
+
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'enforce-post-deploy-tests'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        EXIT_CODE="$$(cat /workspace/reports/post_deploy_exit_code.txt)"
+        if [ "$${EXIT_CODE}" != "0" ]; then
+          echo "Post-deploy API tests reported failures."
+          exit 1
+        fi
+        echo "Post-deploy API tests passed."
+
   - name: 'python:3.11-slim'
     id: 'run-lint-and-tests'
     entrypoint: 'bash'
@@ -94,5 +158,13 @@ substitutions:
   _SERVICE: 'neilsolar-dev-api'
   _DB_URL_SECRET: 'DATABASE_URL'
   _DB_ADMIN_SECRET: 'DATABASE_ADMIN_URL'
+  _DB_ADMIN_MIGRATION_SECRET: 'DATABASE_ADMIN_URL_MIGRATE'
+  _REPORTS_BUCKET: 'neilsolar-ci-reports'
+  _POST_DEPLOY_ADMIN_KEY: 'dev-bootstrap-key'
 options:
   logging: CLOUD_LOGGING_ONLY
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/${PROJECT_ID}/secrets/${_DB_ADMIN_MIGRATION_SECRET}/versions/latest
+      env: DATABASE_ADMIN_URL_MIGRATION
