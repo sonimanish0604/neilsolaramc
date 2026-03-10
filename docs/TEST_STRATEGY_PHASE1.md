@@ -75,8 +75,18 @@ Required automated coverage:
 - token creation, open, sign, expiry, and single-use semantics
 - TTL enforcement at 72h
 - Twilio integration tests with sandbox-safe path (mock/fake in CI, sandbox in dev integration where feasible)
+- notification email provider smoke test for operational confidence (`/notifications/trysendemail`)
 - PDF generation (pre-sign + final signed versions)
 - workorder status transition to `CUSTOMER_SIGNED`/`CLOSED`
+
+Current automation implementation:
+- Unit/service tests: `backend/tests/test_phase1b_services.py`
+- Functional scenario module: `scripts/functional/scenarios/uc_1b_001_approval_token_flow.sh`
+- Functional scenario module: `scripts/functional/scenarios/uc_1b_002_notification_email_smoke.sh`
+- Suite runner support: `scripts/functional/run_functional_suite.sh`
+- Local validator: `scripts/phase1b_local_api_tests.sh`
+- Post-deploy toggle: `RUN_PHASE1B_APPROVAL_SCENARIO=true` with `FUNCTIONAL_APPROVAL_TOKEN=<token>`
+- Post-deploy email smoke toggle: `RUN_PHASE1B_NOTIFICATION_SMOKE=true` with `FUNCTIONAL_PHASE1B_EMAIL_TO=<recipient>`
 
 Exit criteria:
 - deterministic token lifecycle behavior
@@ -123,4 +133,3 @@ Current active branches remain `develop` and `main`.
 When `test` and `staging` are introduced later, this strategy should be extended with:
 - integration soak in `test`
 - release-candidate sign-off in `staging`
-

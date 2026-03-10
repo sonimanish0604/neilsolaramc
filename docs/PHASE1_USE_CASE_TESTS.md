@@ -73,7 +73,7 @@ This document adds scenario-based tests on top of:
   - `backend/tests/test_phase1a_validations.py`
   - `TEST_CASES_PHASE1`: `P1A-006`, `P1A-008`, `P1A-010`, `P1A-011`
 
-## Phase 1B Scenarios (Planned)
+## Phase 1B Scenarios
 
 ### UC-1B-001 Customer Approval Link Success
 - Goal: customer signs through tokenized link and report finalizes.
@@ -90,6 +90,8 @@ This document adds scenario-based tests on top of:
   - workorder moves to `CUSTOMER_SIGNED` then `CLOSED`
 - Coverage Mapping:
   - `TEST_CASES_PHASE1`: `P1B-001` ... `P1B-008`
+  - `scripts/functional/scenarios/uc_1b_001_approval_token_flow.sh`
+  - `backend/tests/test_phase1b_services.py`
 
 ### UC-1B-002 Token Expiry/Reuse Protection
 - Goal: prevent invalid approval actions.
@@ -102,6 +104,23 @@ This document adds scenario-based tests on top of:
   - both actions rejected with proper response
 - Coverage Mapping:
   - `TEST_CASES_PHASE1`: `P1B-005`, `P1B-006`
+  - `backend/tests/test_phase1b_services.py`
+
+### UC-1B-003 Notification Email Smoke
+- Goal: validate deployed notification path by sending a controlled test email.
+- Preconditions:
+  - admin key configured
+  - mail provider credentials configured
+  - recipient mailbox available
+- Steps:
+  1. call `POST /notifications/trysendemail`
+  2. verify HTTP `200` response and provider in payload
+- Expected Result:
+  - API returns success
+  - provider metadata is captured in response
+- Coverage Mapping:
+  - `TEST_CASES_PHASE1`: `P1B-015`
+  - `scripts/functional/scenarios/uc_1b_002_notification_email_smoke.sh`
 
 ## Phase 1C Scenarios (Planned)
 
@@ -118,6 +137,8 @@ This document adds scenario-based tests on top of:
 ## Execution Guidance
 - Local functional run:
   - `bash scripts/phase1a_local_api_tests.sh`
+- Local Phase 1B validation run:
+  - `bash scripts/phase1b_local_api_tests.sh`
 - Reusable modular runner:
   - `bash scripts/functional/run_functional_suite.sh`
 - Post-deploy functional checks:
@@ -129,11 +150,24 @@ This document adds scenario-based tests on top of:
 - `scripts/functional/scenarios/uc_1a_001_tenant_onboarding.sh`
 - `scripts/functional/scenarios/uc_1a_002_customer_site_flow.sh`
 - `scripts/functional/scenarios/uc_1a_003_tech_submit_validation.sh`
+- `scripts/functional/scenarios/uc_1b_001_approval_token_flow.sh`
+- `scripts/functional/scenarios/uc_1b_002_notification_email_smoke.sh`
 - `scripts/functional/run_functional_suite.sh`
 
 Note:
 - `UC-1A-002` requires authenticated application-user API access.
 - Provide `FUNCTIONAL_BEARER_TOKEN` to run it in auth-enabled environments.
+- `UC-1B-001` requires `FUNCTIONAL_APPROVAL_TOKEN` (an active token from `/workorders/{id}/send-approval`).
+- Optional env for `UC-1B-001` signer payload:
+  - `FUNCTIONAL_CUSTOMER_SIGNER_NAME`
+  - `FUNCTIONAL_CUSTOMER_SIGNER_PHONE`
+  - `FUNCTIONAL_CUSTOMER_SIGNATURE_OBJECT_PATH`
+- `UC-1B-003` requires `FUNCTIONAL_PHASE1B_EMAIL_TO`.
+- Optional env for `UC-1B-003`:
+  - `FUNCTIONAL_PHASE1B_DOMAIN_SELECTOR`
+  - `FUNCTIONAL_PHASE1B_EMAIL_FROM`
+  - `FUNCTIONAL_PHASE1B_EMAIL_SUBJECT`
+  - `FUNCTIONAL_PHASE1B_EMAIL_TEXT`
 
 ## Definition of Done for Use-Case Testing (Phase 1A)
 - UC-1A-001, UC-1A-002 pass in local run and CI run.
