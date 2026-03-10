@@ -48,14 +48,9 @@ class SecretResolver:
             return self._fetch_with_cache(provider=provider, ref=ref, logical_name=logical_name)
         except Exception as exc:  # noqa: BLE001
             if settings.secret_fail_open:
-                logger.warning(
-                    "secret fetch failed for %s (%s), falling back to env inline value",
-                    logical_name,
-                    provider,
-                )
-                logger.debug("secret fetch error for %s: %s", logical_name, exc)
+                logger.warning("secret fetch failed; using configured fallback path")
                 return inline
-            raise RuntimeError(f"secret fetch failed for {logical_name}: {exc}") from exc
+            raise RuntimeError("secret fetch failed and fallback is disabled") from exc
 
     def _fetch_with_cache(self, *, provider: str, ref: str, logical_name: str) -> str:
         ttl = max(0, settings.secret_cache_ttl_seconds)
@@ -108,7 +103,7 @@ class SecretResolver:
             timeout=settings.secret_fetch_timeout_seconds,
         )
         if resp.status_code != 200:
-            raise RuntimeError(f"Vault status={resp.status_code} body={resp.text[:200]}")
+            raise RuntimeError(f"Vault request failed with status={resp.status_code}")
 
         payload = resp.json()
         if kv_version == 2:
