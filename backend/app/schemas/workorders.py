@@ -71,3 +71,19 @@ class WorkOrderSubmit(BaseModel):
 
 class WorkOrderStatusUpdate(BaseModel):
     status: str = Field(pattern="^(IN_PROGRESS|CLOSED)$")
+
+
+class SendApprovalIn(BaseModel):
+    channel: str = Field(default="WHATSAPP", pattern="^(WHATSAPP|EMAIL)$")
+
+
+class SendApprovalOut(BaseModel):
+    status: str
+    channel: str
+    expires_at: str
+    approval_token: str
+    approval_url: str
+    report_url: str | None = None
+    delivery_status: str
+    provider_message_id: str | None = None
+    detail: str | None = None

@@ -24,4 +24,5 @@ class Site(TenantScopedMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE", nullable=False)
 
     site_supervisor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    site_supervisor_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     site_supervisor_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)

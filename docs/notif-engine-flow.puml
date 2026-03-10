@@ -1,0 +1,34 @@
+@startuml
+title Notification Service Refactor - Provider Agnostic Queue
+
+rectangle "Business Services" as BS
+rectangle "Notification Orchestrator" as NO
+database "notification_jobs\n(provider-agnostic queue)" as NJ
+rectangle "Email Worker" as EW
+rectangle "Provider Router" as PR
+rectangle "Mailgun Adapter" as MG
+rectangle "SendGrid Adapter" as SG
+database "notification_attempts\n(provider-specific log)" as NA
+database "provider_routing_config" as PC
+rectangle "Dead Letter Handling" as DL
+
+BS --> NO : publish business event
+NO --> NJ : create neutral email job
+
+EW --> NJ : fetch queued jobs
+EW --> PC : load provider config
+EW --> PR : select provider
+PR --> MG : primary
+PR --> SG : fallback
+
+EW --> MG : send email
+EW --> SG : send email
+
+MG --> NA : log attempt
+SG --> NA : log attempt
+
+EW --> NJ : mark sent
+EW --> NJ : mark retry_wait
+EW --> DL : move exhausted jobs
+DL --> NJ : mark dead_lettered
+@enduml

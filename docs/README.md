@@ -103,7 +103,13 @@ WorkOrder lifecycle:
 - `docs/automate_strategy.md`
 - `docs/AI_WORKFLOW_RULES.md`
 - `docs/PHASE1A_LOCAL_TESTING.md`
+- `docs/PHASE1B_VALIDATION.md`
 - `docs/PHASE1_USE_CASE_TESTS.md`
+- `docs/PHASE1B_TWILIO_SETUP.md`
+- `docs/NOTIFICATION_ENGINE_PHASEB.md`
+- `docs/NOTIFICATION_EVENTS.md`
+- `docs/NOTIFICATION_RETENTION.md`
+- `docs/SECRET_MANAGEMENT.md`
 
 ## Local Development
 - Python 3.11+

@@ -82,6 +82,7 @@ All tables include:
 - capacity_kw (numeric, nullable)
 - status (ACTIVE/INACTIVE)
 - site_supervisor_name
+- site_supervisor_email
 - site_supervisor_phone
 
 ### site_inverters (master data per site; dynamic count)
@@ -197,5 +198,67 @@ All tables include:
 - channel (WHATSAPP | EMAIL | WEB)
 - token
 - expires_at
-- status (SENT/OPENED/SIGNED/EXPIRED)
+- status (QUEUED/SENT/OPENED/SIGNED/EXPIRED/REVOKED)
+- created_at
+
+### notification_events (outbox)
+- id
+- tenant_id
+- event_type (e.g., `work_order.submitted_for_approval`)
+- entity_type (e.g., `work_order`)
+- entity_id
+- payload_json
+- status (PENDING/PROCESSING/PROCESSED/FAILED)
+- attempt_count
+- next_attempt_at
+- processed_at
+- last_error
+- created_at
+
+### tenant_notification_settings
+- id
+- tenant_id
+- event_type
+- enabled
+- channels_json (e.g., `["EMAIL","WHATSAPP"]`)
+- recipient_roles_json
+- template_key
+- created_at
+
+### notification_templates
+- id
+- tenant_id
+- template_key
+- channel
+- subject (nullable)
+- body
+- is_active
+- created_at
+
+### notification_logs
+- id
+- tenant_id
+- event_id
+- channel
+- recipient
+- status
+- provider
+- provider_message_id
+- error_message
+- sent_at
+- created_at
+
+### notification_delivery_jobs
+- id
+- tenant_id
+- notification_event_id
+- channel
+- recipient
+- subject (nullable)
+- body
+- status (PENDING/PROCESSING/SENT/FAILED/SKIPPED)
+- attempt_count
+- next_attempt_at
+- processed_at
+- last_error
 - created_at

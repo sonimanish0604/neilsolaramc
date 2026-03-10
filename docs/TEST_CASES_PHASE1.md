@@ -44,6 +44,15 @@
 | P1B-012 | P1 | MANUAL | Report branding/logo rendering | report layout matches approved template |
 | P1B-013 | P1 | POST_DEPLOY | Full approval flow on `develop` | submit -> link open -> sign -> close passes |
 | P1B-014 | P2 | MANUAL | Mobile browser sign flow usability | signature capture succeeds on phone viewport |
+| P1B-015 | P1 | POST_DEPLOY | Notification email smoke in deployed env | `/notifications/trysendemail` returns `200` with provider response |
+
+Phase 1B automation mapping:
+- `P1B-002`, `P1B-005`, `P1B-009`, `P1B-011`: `backend/tests/test_phase1b_services.py`
+- `P1B-003`, `P1B-004`, `P1B-005`: `scripts/functional/scenarios/uc_1b_001_approval_token_flow.sh`
+- `P1B-013`: `scripts/post_deploy_cloud_tests.sh` with `RUN_PHASE1B_APPROVAL_SCENARIO=true`
+- `P1B-015`: `scripts/functional/scenarios/uc_1b_002_notification_email_smoke.sh` via:
+  - local: `scripts/phase1b_local_api_tests.sh`
+  - cloud: `scripts/post_deploy_cloud_tests.sh` with `RUN_PHASE1B_NOTIFICATION_SMOKE=true`
 
 ## Phase 1C Test Cases
 
@@ -73,4 +82,3 @@
 - Integration tests: `backend/tests/integration/*`
 - Post-deploy suite driver: `scripts/post_deploy_cloud_tests.sh`
 - JUnit and summary artifacts uploaded to CI and GCS report bucket
-

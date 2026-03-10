@@ -1,0 +1,45 @@
+@startuml
+title Notification Job Processing with Retry and Failover
+
+participant "Business Service" as BS
+participant "Notification Orchestrator" as NO
+database "notification_jobs" as NJ
+participant "Email Worker" as EW
+database "provider_routing_config" as PC
+participant "Provider Router" as PR
+participant "Mailgun" as MG
+participant "SendGrid" as SG
+database "notification_attempts" as NA
+
+BS -> NO : business event
+NO -> NJ : insert queued job
+
+EW -> NJ : fetch queued job
+EW -> PC : load routing config
+EW -> NA : load prior attempts
+EW -> PR : select_provider(job, config, attempts)
+
+alt primary provider = mailgun
+  EW -> MG : send email
+  alt success
+    MG --> EW : accepted
+    EW -> NA : insert sent attempt
+    EW -> NJ : mark job sent
+  else retryable failure
+    MG --> EW : timeout / 5xx / 429
+    EW -> NA : insert failed attempt
+    EW -> NJ : mark retry_wait + next_attempt_at
+  end
+else fallback provider = sendgrid
+  EW -> SG : send email
+  alt success
+    SG --> EW : accepted
+    EW -> NA : insert sent attempt
+    EW -> NJ : mark job sent
+  else failure
+    SG --> EW : failed
+    EW -> NA : insert failed attempt
+    EW -> NJ : retry or dead_letter
+  end
+end
+@enduml
