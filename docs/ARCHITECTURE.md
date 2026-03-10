@@ -6,9 +6,10 @@ NEIL Solar is a multi-tenant SaaS platform for Solar EPC companies in India to r
 Core flow:
 1) Supervisor schedules AMC visit (WorkOrder) and assigns Technician
 2) Technician completes checklist + captures photos (max 20) + signs
-3) Backend generates PDF report and sends WhatsApp approval link to customer site supervisor
-4) Customer site supervisor signs via mobile web link
-5) Final signed PDF is stored and visible to Owner/Supervisor/Customer portal
+3) Backend generates PDF report and publishes `work_order.submitted_for_approval` notification event
+4) Notification engine resolves recipients/templates/channels and sends approval link (WhatsApp/Email)
+5) Customer site supervisor signs via mobile web link
+6) Final signed PDF is stored and visible to Owner/Supervisor/Customer portal
 
 ## Tech Stack
 - UI: FlutterFlow (Technician mobile app + Owner/Supervisor web portal)
@@ -17,7 +18,7 @@ Core flow:
 - API: FastAPI on Cloud Run
 - DB: Cloud SQL Postgres (managed)
 - Media/PDF: Google Cloud Storage (GCS)
-- Async: Cloud Run Jobs (report generation, WhatsApp send, retention cleanup)
+- Async: Cloud Run Jobs/services (report generation, notification dispatch, retention cleanup)
 - IaC: Terraform
 - Region: asia-south1 (Mumbai)
 

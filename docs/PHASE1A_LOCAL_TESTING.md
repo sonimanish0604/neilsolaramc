@@ -2,6 +2,9 @@
 
 Use this when validating Phase 1A before merge/deploy.
 
+For Phase 1B validation (notification + approval path), use:
+- `docs/PHASE1B_VALIDATION.md`
+
 ## Prerequisites
 - Docker Engine running on local laptop
 - Repo root: `all-solar-amc-SaaS`

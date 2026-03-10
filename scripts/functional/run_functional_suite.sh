@@ -25,6 +25,8 @@ source "${ROOT_DIR}/scripts/functional/lib/common.sh"
 source "${ROOT_DIR}/scripts/functional/scenarios/uc_1a_001_tenant_onboarding.sh"
 source "${ROOT_DIR}/scripts/functional/scenarios/uc_1a_002_customer_site_flow.sh"
 source "${ROOT_DIR}/scripts/functional/scenarios/uc_1a_003_tech_submit_validation.sh"
+source "${ROOT_DIR}/scripts/functional/scenarios/uc_1b_001_approval_token_flow.sh"
+source "${ROOT_DIR}/scripts/functional/scenarios/uc_1b_002_notification_email_smoke.sh"
 
 run_preflight_checks() {
   local health_code
@@ -51,6 +53,12 @@ run_selected_scenarios() {
         ;;
       uc_1a_003_tech_submit_validation)
         scenario_uc_1a_003_tech_submit_validation
+        ;;
+      uc_1b_001_approval_token_flow)
+        scenario_uc_1b_001_approval_token_flow
+        ;;
+      uc_1b_002_notification_email_smoke)
+        scenario_uc_1b_002_notification_email_smoke
         ;;
       *)
         run_skip "scenario ${scenario}" "Unknown scenario"

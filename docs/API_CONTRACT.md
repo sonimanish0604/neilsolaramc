@@ -43,6 +43,7 @@ Body:
   "capacity_kw": 150,
   "status": "ACTIVE",
   "site_supervisor_name": "Mr. Sharma",
+  "site_supervisor_email": "supervisor@example.com",
   "site_supervisor_phone": "+91XXXXXXXXXX"
 }
 
@@ -130,10 +131,21 @@ Response:
 ### Send approval (WhatsApp link)
 POST /workorders/{workorder_id}/send-approval
 Body:
-{ "channel": "WHATSAPP" }
+{ "channel": "WHATSAPP|EMAIL" }
 
 Response:
-- 200 OK { "status": "sent", "approval_token_expires_at": "..." }
+- 200 OK
+{
+  "status": "QUEUED",
+  "channel": "WHATSAPP|EMAIL",
+  "expires_at": "2026-03-10T12:00:00+00:00",
+  "approval_token": "<token>",
+  "approval_url": "https://app.neilsolar.com/approve/<token>",
+  "report_url": "https://app.neilsolar.com/approve/<token>/report",
+  "delivery_status": "QUEUED",
+  "provider_message_id": null,
+  "detail": "Notification event queued: <event_uuid>"
+}
 
 ---
 
@@ -150,6 +162,10 @@ Response:
   "summary": { "pass_count": 10, "fail_count": 2 },
   "sign_required": true
 }
+
+GET /approve/{token}/report
+Response:
+- 200 OK with `application/pdf` (token-gated PDF stream for local/GCP)
 
 POST /approve/{token}/sign
 Body:

@@ -129,6 +129,7 @@ def create_site(payload: SiteCreate, request: Request):
             capacity_kw=payload.capacity_kw,
             status=payload.status,
             site_supervisor_name=payload.site_supervisor_name,
+            site_supervisor_email=payload.site_supervisor_email,
             site_supervisor_phone=payload.site_supervisor_phone,
         )
         db.add(site)
@@ -141,6 +142,7 @@ def create_site(payload: SiteCreate, request: Request):
             capacity_kw=float(site.capacity_kw) if site.capacity_kw is not None else None,
             status=site.status,
             site_supervisor_name=site.site_supervisor_name,
+            site_supervisor_email=site.site_supervisor_email,
             site_supervisor_phone=site.site_supervisor_phone,
         )
 
@@ -164,6 +166,7 @@ def list_sites(request: Request, customer_id: str | None = None):
                 capacity_kw=float(s.capacity_kw) if s.capacity_kw is not None else None,
                 status=s.status,
                 site_supervisor_name=s.site_supervisor_name,
+                site_supervisor_email=s.site_supervisor_email,
                 site_supervisor_phone=s.site_supervisor_phone,
             )
             for s in rows
@@ -195,6 +198,8 @@ def update_site(site_id: str, payload: SiteUpdate, request: Request):
             site.status = payload.status
         if payload.site_supervisor_name is not None:
             site.site_supervisor_name = payload.site_supervisor_name
+        if payload.site_supervisor_email is not None:
+            site.site_supervisor_email = payload.site_supervisor_email
         if payload.site_supervisor_phone is not None:
             site.site_supervisor_phone = payload.site_supervisor_phone
 
@@ -206,6 +211,6 @@ def update_site(site_id: str, payload: SiteUpdate, request: Request):
             capacity_kw=float(site.capacity_kw) if site.capacity_kw is not None else None,
             status=site.status,
             site_supervisor_name=site.site_supervisor_name,
+            site_supervisor_email=site.site_supervisor_email,
             site_supervisor_phone=site.site_supervisor_phone,
         )
-
