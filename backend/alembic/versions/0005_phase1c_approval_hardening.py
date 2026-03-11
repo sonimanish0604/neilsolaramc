@@ -1,7 +1,7 @@
 """phase 1c approval hardening
 
 Revision ID: 0005_phase1c_approval_hardening
-Revises: 0004_checklist_templates
+Revises: 0008_notif_history_retention
 Create Date: 2026-03-10
 """
 
@@ -11,14 +11,12 @@ from sqlalchemy.dialects import postgresql
 
 
 revision = "0005_phase1c_approval_hardening"
-down_revision = "0004_checklist_templates"
+down_revision = "0008_notif_history_retention"
 branch_labels = None
 depends_on = None
 
 
 def upgrade():
-    op.add_column("sites", sa.Column("site_supervisor_email", sa.String(length=200), nullable=True))
-
     op.add_column(
         "approval_events",
         sa.Column("recipient", sa.String(length=200), nullable=True),
@@ -106,5 +104,3 @@ def downgrade():
     op.drop_column("approval_events", "next_retry_at")
     op.drop_column("approval_events", "attempt_count")
     op.drop_column("approval_events", "recipient")
-
-    op.drop_column("sites", "site_supervisor_email")
