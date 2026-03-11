@@ -19,6 +19,10 @@ from app.db.models.notification import (  # noqa
     NotificationEvent, TenantNotificationSetting, NotificationTemplate, NotificationLog,
     NotificationDeliveryJob
 )
+from app.db.models.notification import (  # noqa
+    NotificationEvent, TenantNotificationSetting, NotificationTemplate, NotificationLog,
+    NotificationDeliveryJob
+)
 
 config = context.config
 fileConfig(config.config_file_name)
