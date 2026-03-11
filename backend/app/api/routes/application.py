@@ -130,6 +130,7 @@ def create_site(payload: SiteCreate, request: Request):
             status=payload.status,
             site_supervisor_name=payload.site_supervisor_name,
             site_supervisor_phone=payload.site_supervisor_phone,
+            site_supervisor_email=payload.site_supervisor_email,
         )
         db.add(site)
         db.flush()
@@ -142,6 +143,7 @@ def create_site(payload: SiteCreate, request: Request):
             status=site.status,
             site_supervisor_name=site.site_supervisor_name,
             site_supervisor_phone=site.site_supervisor_phone,
+            site_supervisor_email=site.site_supervisor_email,
         )
 
 
@@ -165,6 +167,7 @@ def list_sites(request: Request, customer_id: str | None = None):
                 status=s.status,
                 site_supervisor_name=s.site_supervisor_name,
                 site_supervisor_phone=s.site_supervisor_phone,
+                site_supervisor_email=s.site_supervisor_email,
             )
             for s in rows
         ]
@@ -197,6 +200,13 @@ def update_site(site_id: str, payload: SiteUpdate, request: Request):
             site.site_supervisor_name = payload.site_supervisor_name
         if payload.site_supervisor_phone is not None:
             site.site_supervisor_phone = payload.site_supervisor_phone
+        if payload.site_supervisor_email is not None:
+            site.site_supervisor_email = payload.site_supervisor_email
+        if not (site.site_supervisor_phone or site.site_supervisor_email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either site_supervisor_phone or site_supervisor_email is required",
+            )
 
         return SiteOut(
             id=str(site.id),
@@ -207,5 +217,5 @@ def update_site(site_id: str, payload: SiteUpdate, request: Request):
             status=site.status,
             site_supervisor_name=site.site_supervisor_name,
             site_supervisor_phone=site.site_supervisor_phone,
+            site_supervisor_email=site.site_supervisor_email,
         )
-

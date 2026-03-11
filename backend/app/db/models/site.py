@@ -25,3 +25,4 @@ class Site(TenantScopedMixin, Base):
 
     site_supervisor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     site_supervisor_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    site_supervisor_email: Mapped[str | None] = mapped_column(String(200), nullable=True)

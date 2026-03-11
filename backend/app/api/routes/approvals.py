@@ -6,11 +6,13 @@ from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
 
 from app.core.tenancy import ctx_roles, ctx_tenant_id, ctx_user_id
+from app.core.correlation import get_request_correlation_id
 from app.db.session import get_admin_db, get_app_db
 from app.db.models.site import Site
-from app.db.models.workorder import WorkOrder, ApprovalEvent, Signature, Report
+from app.db.models.workorder import WorkOrder, ApprovalEvent, Report, Signature
 from app.schemas.approvals import ApprovalViewOut, CustomerSignIn, CustomerSignOut
-from app.services.report_generator import generate_report_placeholder
+from app.services.approval_tokens import now_utc, parse_iso
+from app.services.report_jobs import enqueue_report_job, run_report_job
 
 router = APIRouter(prefix="/approve", tags=["approvals"])
 
@@ -24,23 +26,35 @@ def _resolve_token_to_context(token: str):
         if not ae:
             raise HTTPException(status_code=404, detail="Invalid token")
 
+        if ae.status in {"SUPERSEDED", "REVOKED"}:
+            raise HTTPException(status_code=410, detail="Token no longer valid")
+        if ae.status == "SIGNED":
+            raise HTTPException(status_code=409, detail="Token already used")
+
         # expiry check
-        exp = datetime.fromisoformat(ae.expires_at)
-        if exp < datetime.now(timezone.utc):
+        exp = parse_iso(ae.expires_at)
+        if exp < now_utc():
+            ae.status = "EXPIRED"
+            adb.commit()
             raise HTTPException(status_code=410, detail="Token expired")
 
-        return ae.tenant_id, ae.workorder_id
+        return ae.tenant_id, ae.workorder_id, ae.id
 
 
 @router.get("/{token}", response_model=ApprovalViewOut)
 def view_approval(token: str):
-    tenant_id, workorder_id = _resolve_token_to_context(token)
+    tenant_id, workorder_id, approval_event_id = _resolve_token_to_context(token)
 
     ctx_tenant_id.set(tenant_id)
     ctx_user_id.set(None)
     ctx_roles.set(set())
 
     with get_app_db(tenant_id=tenant_id, user_id=None) as db:
+        approval_event = db.execute(select(ApprovalEvent).where(ApprovalEvent.id == approval_event_id)).scalar_one()
+        if approval_event.status in {"SENT", "DELIVERY_FAILED", "QUEUED"}:
+            approval_event.status = "OPENED"
+            approval_event.opened_at = datetime.now(timezone.utc).isoformat()
+
         wo = db.execute(select(WorkOrder).where(WorkOrder.id == workorder_id)).scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="WorkOrder not found")
@@ -66,7 +80,8 @@ def view_approval(token: str):
 
 @router.post("/{token}/sign", response_model=CustomerSignOut)
 def customer_sign(token: str, payload: CustomerSignIn, request: Request):
-    tenant_id, workorder_id = _resolve_token_to_context(token)
+    correlation_id = get_request_correlation_id(request)
+    tenant_id, workorder_id, approval_event_id = _resolve_token_to_context(token)
 
     ctx_tenant_id.set(tenant_id)
     ctx_user_id.set(None)
@@ -75,6 +90,10 @@ def customer_sign(token: str, payload: CustomerSignIn, request: Request):
     now_iso = datetime.now(timezone.utc).isoformat()
 
     with get_app_db(tenant_id=tenant_id, user_id=None) as db:
+        approval_event = db.execute(select(ApprovalEvent).where(ApprovalEvent.id == approval_event_id)).scalar_one()
+        if approval_event.status == "SIGNED":
+            raise HTTPException(status_code=409, detail="Token already used")
+
         wo = db.execute(select(WorkOrder).where(WorkOrder.id == workorder_id)).scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="WorkOrder not found")
@@ -95,19 +114,19 @@ def customer_sign(token: str, payload: CustomerSignIn, request: Request):
         # mark status
         wo.status = "CUSTOMER_SIGNED"
 
-        # generate final report placeholder
-        gen = generate_report_placeholder(str(wo.id))
-        final_report = Report(
+        final_job = enqueue_report_job(
+            db,
             tenant_id=tenant_id,
             workorder_id=wo.id,
-            report_version=2,
-            pdf_gcs_object_path=gen.gcs_object_path,
-            pdf_sha256=gen.sha256,
-            pass_count=gen.pass_count,
-            fail_count=gen.fail_count,
-            generated_at=gen.generated_at_iso,
             is_final=True,
+            idempotency_key=f"approval-final:{approval_event.id}",
+            correlation_id=approval_event.correlation_id or correlation_id,
         )
-        db.add(final_report)
+        final_job_result = run_report_job(db, job=final_job, force=True)
+        approval_event.status = "SIGNED"
+        approval_event.signed_at = now_iso
+        approval_event.next_retry_at = None
 
-        return CustomerSignOut(status="SIGNED", final_report_pdf_url=final_report.pdf_gcs_object_path)
+        if final_job_result.report:
+            return CustomerSignOut(status="SIGNED", final_report_pdf_url=final_job_result.report.pdf_gcs_object_path)
+        return CustomerSignOut(status="SIGNED_REPORT_PENDING", final_report_pdf_url=None)

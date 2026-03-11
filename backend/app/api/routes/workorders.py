@@ -8,12 +8,39 @@ from sqlalchemy import delete, select
 
 from app.core.security import verify_firebase_jwt
 from app.core.tenancy import ctx_roles, ctx_tenant_id, ctx_user_id, require_roles
+from app.core.correlation import get_request_correlation_id
 from app.db.session import get_admin_db, get_app_db
 from app.db.models.user import User, UserRole
 from app.db.models.workorder import (
-    WorkOrder, ChecklistResponse, NetMeterReading, InverterReading, Media, Signature
+    ApprovalEvent,
+    ChecklistResponse,
+    InverterReading,
+    Media,
+    NetMeterReading,
+    Report,
+    ReportJob,
+    Signature,
+    WorkOrder,
 )
+from app.services.approval_tokens import (
+    build_approval_link,
+    create_and_send_approval_event,
+    latest_active_event,
+    now_utc,
+    parse_iso,
+    process_due_reminders,
+    resend_approval_link,
+)
+from app.services.report_jobs import enqueue_report_job, retry_report_job, run_report_job
 from app.schemas.workorders import WorkOrderCreate, WorkOrderOut, WorkOrderStatusUpdate, WorkOrderSubmit
+from app.schemas.workorders import (
+    ApprovalReminderRunOut,
+    ApprovalResendIn,
+    ApprovalSendOut,
+    GenerateReportSyncOut,
+    ReportJobCreateIn,
+    ReportJobOut,
+)
 
 router = APIRouter(prefix="/workorders", tags=["workorders"])
 
@@ -24,6 +51,43 @@ def _can_transition(current_status: str, next_status: str) -> bool:
         "CUSTOMER_SIGNED": {"CLOSED"},
     }
     return next_status in allowed.get(current_status, set())
+
+
+def _approval_event_out(event: ApprovalEvent) -> ApprovalSendOut:
+    return ApprovalSendOut(
+        event_id=str(event.id),
+        correlation_id=event.correlation_id,
+        workorder_id=str(event.workorder_id),
+        channel=event.channel,
+        recipient=event.recipient,
+        status=event.status,
+        token_expires_at=event.expires_at,
+        approval_link=build_approval_link(event.token),
+        attempt_count=event.attempt_count,
+        next_retry_at=event.next_retry_at,
+    )
+
+
+def _report_job_out(job: ReportJob, report: Report | None = None) -> ReportJobOut:
+    resolved_report = report
+    if not resolved_report and job.generated_report_id:
+        resolved_report_id = str(job.generated_report_id)
+    else:
+        resolved_report_id = str(resolved_report.id) if resolved_report else None
+
+    return ReportJobOut(
+        job_id=str(job.id),
+        correlation_id=job.correlation_id,
+        workorder_id=str(job.workorder_id),
+        job_type=job.job_type,
+        status=job.status,
+        attempt_count=job.attempt_count,
+        max_attempts=job.max_attempts,
+        next_retry_at=job.next_retry_at,
+        last_error=job.last_error,
+        generated_report_id=resolved_report_id,
+        report_pdf_url=resolved_report.pdf_gcs_object_path if resolved_report else None,
+    )
 
 
 def _load_user_and_tenant(firebase_uid: str):
@@ -257,3 +321,203 @@ def update_workorder_status(workorder_id: str, payload: WorkOrderStatusUpdate, r
             visit_status=wo.visit_status,
             summary_notes=wo.summary_notes,
         )
+
+
+@router.post("/{workorder_id}/send-approval", response_model=ApprovalSendOut)
+def send_approval_link(workorder_id: str, request: Request):
+    correlation_id = get_request_correlation_id(request)
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        wo = db.execute(select(WorkOrder).where(WorkOrder.id == UUID(workorder_id))).scalar_one_or_none()
+        if not wo:
+            raise HTTPException(status_code=404, detail="WorkOrder not found")
+        if wo.status in {"CUSTOMER_SIGNED", "CLOSED"}:
+            raise HTTPException(status_code=409, detail=f"Approval link not allowed for status {wo.status}")
+
+        active_event = latest_active_event(db, wo.id)
+        if active_event and parse_iso(active_event.expires_at) > now_utc():
+            raise HTTPException(
+                status_code=409,
+                detail="Active approval token already exists. Use /resend-approval for reminder/refresh.",
+            )
+        if active_event and parse_iso(active_event.expires_at) <= now_utc():
+            active_event.status = "EXPIRED"
+
+        event = create_and_send_approval_event(
+            db,
+            tenant_id=tenant_id,
+            workorder_id=wo.id,
+            correlation_id=correlation_id,
+        )
+        return _approval_event_out(event)
+
+
+@router.post("/{workorder_id}/resend-approval", response_model=ApprovalSendOut)
+def resend_approval(workorder_id: str, payload: ApprovalResendIn, request: Request):
+    correlation_id = get_request_correlation_id(request)
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        wo = db.execute(select(WorkOrder).where(WorkOrder.id == UUID(workorder_id))).scalar_one_or_none()
+        if not wo:
+            raise HTTPException(status_code=404, detail="WorkOrder not found")
+        if wo.status in {"CUSTOMER_SIGNED", "CLOSED"}:
+            raise HTTPException(status_code=409, detail=f"Resend not allowed for status {wo.status}")
+
+        event = resend_approval_link(
+            db,
+            tenant_id=tenant_id,
+            workorder_id=wo.id,
+            mode=payload.mode,
+            is_reminder=False,
+            correlation_id=correlation_id,
+        )
+        return _approval_event_out(event)
+
+
+@router.post("/approval-reminders/run", response_model=ApprovalReminderRunOut)
+def run_approval_reminders(request: Request):
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        stats = process_due_reminders(db, tenant_id=tenant_id)
+        return ApprovalReminderRunOut(
+            scanned=stats.scanned,
+            reminders_sent=stats.reminders_sent,
+            skipped=stats.skipped,
+        )
+
+
+@router.post("/{workorder_id}/generate-report-async", response_model=ReportJobOut)
+def generate_report_async(workorder_id: str, payload: ReportJobCreateIn, request: Request):
+    correlation_id = get_request_correlation_id(request)
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR", "TECH")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        wo = db.execute(select(WorkOrder).where(WorkOrder.id == UUID(workorder_id))).scalar_one_or_none()
+        if not wo:
+            raise HTTPException(status_code=404, detail="WorkOrder not found")
+
+        job = enqueue_report_job(
+            db,
+            tenant_id=tenant_id,
+            workorder_id=wo.id,
+            is_final=payload.is_final,
+            idempotency_key=payload.idempotency_key,
+            correlation_id=correlation_id,
+            simulate_failures=payload.simulate_failures,
+        )
+        return _report_job_out(job)
+
+
+@router.post("/{workorder_id}/generate-report", response_model=GenerateReportSyncOut)
+def generate_report_sync(workorder_id: str, payload: ReportJobCreateIn, request: Request):
+    correlation_id = get_request_correlation_id(request)
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR", "TECH")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        wo = db.execute(select(WorkOrder).where(WorkOrder.id == UUID(workorder_id))).scalar_one_or_none()
+        if not wo:
+            raise HTTPException(status_code=404, detail="WorkOrder not found")
+
+        job = enqueue_report_job(
+            db,
+            tenant_id=tenant_id,
+            workorder_id=wo.id,
+            is_final=payload.is_final,
+            idempotency_key=payload.idempotency_key,
+            correlation_id=correlation_id,
+            simulate_failures=payload.simulate_failures,
+        )
+        result = run_report_job(db, job=job, force=True)
+        status_out = "COMPLETED" if result.job.status == "SUCCEEDED" else "QUEUED_FOR_RETRY"
+        return GenerateReportSyncOut(status=status_out, job=_report_job_out(result.job, result.report))
+
+
+@router.get("/report-jobs/{job_id}", response_model=ReportJobOut)
+def get_report_job(job_id: str, request: Request):
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR", "TECH")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        job = db.execute(select(ReportJob).where(ReportJob.id == UUID(job_id))).scalar_one_or_none()
+        if not job:
+            raise HTTPException(status_code=404, detail="Report job not found")
+        report = None
+        if job.generated_report_id:
+            report = db.execute(select(Report).where(Report.id == job.generated_report_id)).scalar_one_or_none()
+        return _report_job_out(job, report)
+
+
+@router.post("/report-jobs/{job_id}/run", response_model=ReportJobOut)
+def run_report_job_endpoint(job_id: str, request: Request):
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        job = db.execute(select(ReportJob).where(ReportJob.id == UUID(job_id))).scalar_one_or_none()
+        if not job:
+            raise HTTPException(status_code=404, detail="Report job not found")
+
+        result = run_report_job(db, job=job, force=False)
+        return _report_job_out(result.job, result.report)
+
+
+@router.post("/report-jobs/{job_id}/retry", response_model=ReportJobOut)
+def retry_report_job_endpoint(job_id: str, request: Request):
+    auth = verify_firebase_jwt(request)
+    tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
+
+    ctx_tenant_id.set(tenant_id)
+    ctx_user_id.set(user_id)
+    ctx_roles.set(roles)
+    require_roles("OWNER", "SUPERVISOR")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        job = db.execute(select(ReportJob).where(ReportJob.id == UUID(job_id))).scalar_one_or_none()
+        if not job:
+            raise HTTPException(status_code=404, detail="Report job not found")
+
+        result = retry_report_job(db, job=job)
+        return _report_job_out(result.job, result.report)

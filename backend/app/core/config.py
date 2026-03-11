@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     gcs_reports_bucket: str = "neilsolar-dev-reports"
 
     approval_token_ttl_hours: int = 72
+    approval_retry_max_attempts: int = 3
+    approval_retry_backoff_seconds: int = 300
+    approval_reminder_lead_hours: int = 24
+    approval_max_reminders: int = 2
+    approval_link_base_url: str = "http://localhost:8000/approve"
+    report_job_max_attempts: int = 3
+    report_job_backoff_seconds: int = 120
     bootstrap_admin_key: str = "dev-bootstrap-key"
 
     @field_validator("database_url", "database_admin_url", mode="before")

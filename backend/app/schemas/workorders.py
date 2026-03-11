@@ -71,3 +71,51 @@ class WorkOrderSubmit(BaseModel):
 
 class WorkOrderStatusUpdate(BaseModel):
     status: str = Field(pattern="^(IN_PROGRESS|CLOSED)$")
+
+
+class ApprovalSendOut(BaseModel):
+    event_id: str
+    correlation_id: str | None
+    workorder_id: str
+    channel: str
+    recipient: str | None
+    status: str
+    token_expires_at: str
+    approval_link: str
+    attempt_count: int
+    next_retry_at: str | None
+
+
+class ApprovalResendIn(BaseModel):
+    mode: str = Field(default="NEW_TOKEN", pattern="^(NEW_TOKEN|EXTEND)$")
+
+
+class ApprovalReminderRunOut(BaseModel):
+    scanned: int
+    reminders_sent: int
+    skipped: int
+
+
+class ReportJobCreateIn(BaseModel):
+    is_final: bool = False
+    idempotency_key: str | None = None
+    simulate_failures: int = Field(default=0, ge=0, le=3)
+
+
+class ReportJobOut(BaseModel):
+    job_id: str
+    correlation_id: str | None
+    workorder_id: str
+    job_type: str
+    status: str
+    attempt_count: int
+    max_attempts: int
+    next_retry_at: str | None
+    last_error: str | None
+    generated_report_id: str | None
+    report_pdf_url: str | None
+
+
+class GenerateReportSyncOut(BaseModel):
+    status: str
+    job: ReportJobOut

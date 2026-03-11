@@ -81,11 +81,40 @@ class Report(TenantScopedMixin, Base):
     is_final: Mapped[bool] = mapped_column(nullable=False, default=False)
 
 
+class ReportJob(TenantScopedMixin, Base):
+    __tablename__ = "report_jobs"
+
+    workorder_id: Mapped[PGUUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
+    job_type: Mapped[str] = mapped_column(String(20), nullable=False, default="DRAFT")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="QUEUED", index=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    generated_report_id: Mapped[PGUUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True, index=True)
+    attempt_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(nullable=False, default=3)
+    simulate_failures_remaining: Mapped[int] = mapped_column(nullable=False, default=0)
+    next_retry_at: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    started_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    completed_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
 class ApprovalEvent(TenantScopedMixin, Base):
     __tablename__ = "approval_events"
 
     workorder_id: Mapped[PGUUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
     channel: Mapped[str] = mapped_column(String(20), default="WHATSAPP", nullable=False)
     token: Mapped[str] = mapped_column(String(200), nullable=False, unique=True, index=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     expires_at: Mapped[str] = mapped_column(String(40), nullable=False)
-    status: Mapped[str] = mapped_column(String(20), default="SENT", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="QUEUED", nullable=False, index=True)
+    recipient: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    next_retry_at: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sent_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    opened_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    signed_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    reminder_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    last_reminder_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    superseded_by_event_id: Mapped[PGUUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True, index=True)
