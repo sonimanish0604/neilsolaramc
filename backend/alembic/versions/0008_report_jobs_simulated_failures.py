@@ -1,6 +1,6 @@
 """add simulated failure control to report jobs
 
-Revision ID: 0008_report_jobs_simulated_failures
+Revision ID: 0008_report_job_failures
 Revises: 0007_add_correlation_ids
 Create Date: 2026-03-10
 """
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "0008_report_jobs_simulated_failures"
+revision = "0008_report_job_failures"
 down_revision = "0007_add_correlation_ids"
 branch_labels = None
 depends_on = None
