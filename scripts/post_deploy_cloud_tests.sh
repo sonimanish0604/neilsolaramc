@@ -9,6 +9,8 @@ REPORT_DIR="${REPORT_DIR:-/workspace/reports}"
 REPORT_BRANCH="${REPORT_BRANCH:-manual}"
 ADMIN_KEY="${POST_DEPLOY_ADMIN_KEY:-dev-bootstrap-key}"
 RUN_STATEFUL_TESTS="${RUN_STATEFUL_POST_DEPLOY_TESTS:-false}"
+RUN_PHASE1B_APPROVAL_SCENARIO="${RUN_PHASE1B_APPROVAL_SCENARIO:-false}"
+RUN_PHASE1B_NOTIFICATION_SMOKE="${RUN_PHASE1B_NOTIFICATION_SMOKE:-false}"
 RUN_PHASE1C_TESTS="${RUN_PHASE1C_POST_DEPLOY_TESTS:-false}"
 
 mkdir -p "${REPORT_DIR}"
@@ -19,6 +21,15 @@ export REPORT_BRANCH
 export BUILD_ID="${BUILD_ID:-unknown}"
 export POST_DEPLOY_ADMIN_KEY="${ADMIN_KEY}"
 export FUNCTIONAL_BEARER_TOKEN="${FUNCTIONAL_BEARER_TOKEN:-}"
+export FUNCTIONAL_APPROVAL_TOKEN="${FUNCTIONAL_APPROVAL_TOKEN:-}"
+export FUNCTIONAL_CUSTOMER_SIGNER_NAME="${FUNCTIONAL_CUSTOMER_SIGNER_NAME:-}"
+export FUNCTIONAL_CUSTOMER_SIGNER_PHONE="${FUNCTIONAL_CUSTOMER_SIGNER_PHONE:-}"
+export FUNCTIONAL_CUSTOMER_SIGNATURE_OBJECT_PATH="${FUNCTIONAL_CUSTOMER_SIGNATURE_OBJECT_PATH:-}"
+export FUNCTIONAL_PHASE1B_EMAIL_TO="${FUNCTIONAL_PHASE1B_EMAIL_TO:-}"
+export FUNCTIONAL_PHASE1B_DOMAIN_SELECTOR="${FUNCTIONAL_PHASE1B_DOMAIN_SELECTOR:-1}"
+export FUNCTIONAL_PHASE1B_EMAIL_FROM="${FUNCTIONAL_PHASE1B_EMAIL_FROM:-}"
+export FUNCTIONAL_PHASE1B_EMAIL_SUBJECT="${FUNCTIONAL_PHASE1B_EMAIL_SUBJECT:-}"
+export FUNCTIONAL_PHASE1B_EMAIL_TEXT="${FUNCTIONAL_PHASE1B_EMAIL_TEXT:-}"
 export SUMMARY_FILE="${REPORT_DIR}/post_deploy_summary.md"
 export JUNIT_FILE="${REPORT_DIR}/post_deploy_junit.xml"
 export EXIT_FILE="${REPORT_DIR}/post_deploy_exit_code.txt"
@@ -34,6 +45,18 @@ else
   export SCENARIOS=""
 fi
 
+if [[ "${RUN_PHASE1B_APPROVAL_SCENARIO}" == "true" ]]; then
+  export SCENARIOS="${SCENARIOS} uc_1b_001_approval_token_flow"
+fi
+
+if [[ "${RUN_PHASE1B_NOTIFICATION_SMOKE}" == "true" ]]; then
+  if [[ -z "${FUNCTIONAL_PHASE1B_EMAIL_TO}" ]]; then
+    echo "RUN_PHASE1B_NOTIFICATION_SMOKE=true requires FUNCTIONAL_PHASE1B_EMAIL_TO"
+    exit 1
+  fi
+  export SCENARIOS="${SCENARIOS} uc_1b_002_notification_email_smoke"
+fi
+
 bash "${ROOT_DIR}/scripts/functional/run_functional_suite.sh" || true
 
 PHASE1C_EXIT_FILE="${REPORT_DIR}/phase1c_post_deploy_exit_code.txt"
@@ -44,7 +67,6 @@ if [[ "${RUN_PHASE1C_TESTS}" == "true" ]]; then
   bash "${ROOT_DIR}/scripts/phase1c_post_deploy_tests.sh" || true
 fi
 
-# Preserve existing behavior: this script writes exit code to a file and exits 0.
 BASE_EXIT_FILE="${REPORT_DIR}/post_deploy_exit_code.txt"
 if [[ ! -f "${BASE_EXIT_FILE}" ]]; then
   echo "1" > "${BASE_EXIT_FILE}"

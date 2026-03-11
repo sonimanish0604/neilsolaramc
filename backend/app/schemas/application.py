@@ -31,8 +31,8 @@ class SiteCreate(BaseModel):
     capacity_kw: Optional[float] = None
     status: str = Field(default="ACTIVE", pattern="^(ACTIVE|INACTIVE)$")
     site_supervisor_name: Optional[str] = Field(default=None, max_length=200)
-    site_supervisor_phone: Optional[str] = Field(default=None, max_length=50)
     site_supervisor_email: Optional[str] = Field(default=None, max_length=200)
+    site_supervisor_phone: Optional[str] = Field(default=None, max_length=50)
 
     @model_validator(mode="after")
     def validate_contact_present(self):
@@ -47,8 +47,8 @@ class SiteUpdate(BaseModel):
     capacity_kw: Optional[float] = None
     status: Optional[str] = Field(default=None, pattern="^(ACTIVE|INACTIVE)$")
     site_supervisor_name: Optional[str] = Field(default=None, max_length=200)
-    site_supervisor_phone: Optional[str] = Field(default=None, max_length=50)
     site_supervisor_email: Optional[str] = Field(default=None, max_length=200)
+    site_supervisor_phone: Optional[str] = Field(default=None, max_length=50)
 
 
 class SiteOut(BaseModel):
@@ -59,5 +59,5 @@ class SiteOut(BaseModel):
     capacity_kw: Optional[float] = None
     status: str
     site_supervisor_name: Optional[str] = None
-    site_supervisor_phone: Optional[str] = None
     site_supervisor_email: Optional[str] = None
+    site_supervisor_phone: Optional[str] = None

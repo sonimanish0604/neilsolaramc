@@ -6,10 +6,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import delete, select
 
+from app.core.correlation import get_request_correlation_id
 from app.core.security import verify_firebase_jwt
 from app.core.tenancy import ctx_roles, ctx_tenant_id, ctx_user_id, require_roles
-from app.core.correlation import get_request_correlation_id
-from app.db.session import get_admin_db, get_app_db
+from app.db.models.site import Site
 from app.db.models.user import User, UserRole
 from app.db.models.workorder import (
     ApprovalEvent,
@@ -22,6 +22,20 @@ from app.db.models.workorder import (
     Signature,
     WorkOrder,
 )
+from app.db.session import get_admin_db, get_app_db
+from app.schemas.workorders import (
+    ApprovalReminderRunOut,
+    ApprovalResendIn,
+    ApprovalSendOut,
+    GenerateReportSyncOut,
+    ReportJobCreateIn,
+    ReportJobOut,
+    SendApprovalIn,
+    WorkOrderCreate,
+    WorkOrderOut,
+    WorkOrderStatusUpdate,
+    WorkOrderSubmit,
+)
 from app.services.approval_tokens import (
     build_approval_link,
     create_and_send_approval_event,
@@ -31,16 +45,8 @@ from app.services.approval_tokens import (
     process_due_reminders,
     resend_approval_link,
 )
+from app.services.notification_events import publish_notification_event
 from app.services.report_jobs import enqueue_report_job, retry_report_job, run_report_job
-from app.schemas.workorders import WorkOrderCreate, WorkOrderOut, WorkOrderStatusUpdate, WorkOrderSubmit
-from app.schemas.workorders import (
-    ApprovalReminderRunOut,
-    ApprovalResendIn,
-    ApprovalSendOut,
-    GenerateReportSyncOut,
-    ReportJobCreateIn,
-    ReportJobOut,
-)
 
 router = APIRouter(prefix="/workorders", tags=["workorders"])
 
@@ -54,6 +60,9 @@ def _can_transition(current_status: str, next_status: str) -> bool:
 
 
 def _approval_event_out(event: ApprovalEvent) -> ApprovalSendOut:
+    approval_link = build_approval_link(event.token)
+    report_link = f"{approval_link}/report"
+    delivery_status = "SENT" if event.status in {"SENT", "OPENED"} else event.status
     return ApprovalSendOut(
         event_id=str(event.id),
         correlation_id=event.correlation_id,
@@ -62,9 +71,15 @@ def _approval_event_out(event: ApprovalEvent) -> ApprovalSendOut:
         recipient=event.recipient,
         status=event.status,
         token_expires_at=event.expires_at,
-        approval_link=build_approval_link(event.token),
+        approval_link=approval_link,
         attempt_count=event.attempt_count,
         next_retry_at=event.next_retry_at,
+        approval_token=event.token,
+        approval_url=approval_link,
+        report_url=report_link,
+        delivery_status=delivery_status,
+        provider_message_id=None,
+        detail=None,
     )
 
 
@@ -91,9 +106,6 @@ def _report_job_out(job: ReportJob, report: Report | None = None) -> ReportJobOu
 
 
 def _load_user_and_tenant(firebase_uid: str):
-    """
-    Uses ADMIN DB (BYPASSRLS) to resolve firebase_uid -> (tenant_id, user_id, roles).
-    """
     with get_admin_db() as adb:
         user = adb.execute(select(User).where(User.firebase_uid == firebase_uid)).scalar_one_or_none()
         if not user:
@@ -111,7 +123,6 @@ def create_workorder(payload: WorkOrderCreate, request: Request):
     ctx_tenant_id.set(tenant_id)
     ctx_user_id.set(user_id)
     ctx_roles.set(roles)
-
     require_roles("OWNER", "SUPERVISOR")
 
     with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
@@ -177,7 +188,6 @@ def get_workorder(workorder_id: str, request: Request):
         if not wo:
             raise HTTPException(status_code=404, detail="WorkOrder not found")
 
-        # RLS will already prevent cross-tenant access
         return WorkOrderOut(
             id=str(wo.id),
             site_id=str(wo.site_id),
@@ -197,7 +207,6 @@ def submit_workorder(workorder_id: str, payload: WorkOrderSubmit, request: Reque
     ctx_tenant_id.set(tenant_id)
     ctx_user_id.set(user_id)
     ctx_roles.set(roles)
-
     require_roles("TECH")
 
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -223,61 +232,85 @@ def submit_workorder(workorder_id: str, payload: WorkOrderSubmit, request: Reque
         wo.visit_status = payload.visit_status
         wo.summary_notes = payload.summary_notes
 
-        # Idempotent replace of submission data for this workorder.
         db.execute(delete(ChecklistResponse).where(ChecklistResponse.workorder_id == wo.id))
         db.execute(delete(NetMeterReading).where(NetMeterReading.workorder_id == wo.id))
         db.execute(delete(InverterReading).where(InverterReading.workorder_id == wo.id))
         db.execute(delete(Media).where(Media.workorder_id == wo.id))
-        db.execute(
-            delete(Signature).where(Signature.workorder_id == wo.id, Signature.signer_role == "TECH")
+        db.execute(delete(Signature).where(Signature.workorder_id == wo.id, Signature.signer_role == "TECH"))
+
+        db.add(
+            ChecklistResponse(
+                tenant_id=tenant_id,
+                workorder_id=wo.id,
+                template_version=1,
+                answers_json=payload.checklist_answers,
+            )
+        )
+        db.add(
+            NetMeterReading(
+                tenant_id=tenant_id,
+                workorder_id=wo.id,
+                net_kwh=payload.net_meter.net_kwh,
+                imp_kwh=payload.net_meter.imp_kwh,
+                exp_kwh=payload.net_meter.exp_kwh,
+            )
         )
 
-        db.add(ChecklistResponse(
-            tenant_id=tenant_id,
-            workorder_id=wo.id,
-            template_version=1,
-            answers_json=payload.checklist_answers,
-        ))
+        for reading in payload.inverter_readings:
+            db.add(
+                InverterReading(
+                    tenant_id=tenant_id,
+                    workorder_id=wo.id,
+                    inverter_id=UUID(reading.inverter_id),
+                    power_kw=reading.power_kw,
+                    day_kwh=reading.day_kwh,
+                    total_kwh=reading.total_kwh,
+                )
+            )
 
-        db.add(NetMeterReading(
-            tenant_id=tenant_id,
-            workorder_id=wo.id,
-            net_kwh=payload.net_meter.net_kwh,
-            imp_kwh=payload.net_meter.imp_kwh,
-            exp_kwh=payload.net_meter.exp_kwh,
-        ))
+        for media_item in payload.media:
+            db.add(
+                Media(
+                    tenant_id=tenant_id,
+                    workorder_id=wo.id,
+                    item_key=media_item.item_key,
+                    gcs_object_path=media_item.object_path,
+                    content_type=media_item.content_type,
+                    size_bytes=media_item.size_bytes,
+                )
+            )
 
-        for r in payload.inverter_readings:
-            db.add(InverterReading(
+        db.add(
+            Signature(
                 tenant_id=tenant_id,
                 workorder_id=wo.id,
-                inverter_id=UUID(r.inverter_id),
-                power_kw=r.power_kw,
-                day_kwh=r.day_kwh,
-                total_kwh=r.total_kwh,
-            ))
+                signer_role="TECH",
+                signer_name=payload.tech_signature.signer_name,
+                signer_phone=payload.tech_signature.signer_phone,
+                signature_gcs_object_path=payload.tech_signature.signature_object_path,
+                signed_at=now_iso,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("User-Agent"),
+            )
+        )
 
-        for m in payload.media:
-            db.add(Media(
-                tenant_id=tenant_id,
-                workorder_id=wo.id,
-                item_key=m.item_key,
-                gcs_object_path=m.object_path,
-                content_type=m.content_type,
-                size_bytes=m.size_bytes,
-            ))
-
-        db.add(Signature(
+        site = db.execute(select(Site).where(Site.id == wo.site_id)).scalar_one_or_none()
+        publish_notification_event(
+            db=db,
             tenant_id=tenant_id,
-            workorder_id=wo.id,
-            signer_role="TECH",
-            signer_name=payload.tech_signature.signer_name,
-            signer_phone=payload.tech_signature.signer_phone,
-            signature_gcs_object_path=payload.tech_signature.signature_object_path,
-            signed_at=now_iso,
-            ip_address=request.client.host if request.client else None,
-            user_agent=request.headers.get("User-Agent"),
-        ))
+            event_type="work_order.completed",
+            entity_type="work_order",
+            entity_id=str(wo.id),
+            payload={
+                "workorder_id": str(wo.id),
+                "site_name": site.site_name if site else None,
+                "site_supervisor_email": site.site_supervisor_email if site else None,
+                "site_supervisor_phone": site.site_supervisor_phone if site else None,
+                "visit_status": wo.visit_status,
+                "summary_notes": wo.summary_notes,
+                "technician_name": payload.tech_signature.signer_name,
+            },
+        )
 
         return {"status": "SUBMITTED", "message": "WorkOrder submitted successfully"}
 
@@ -324,7 +357,7 @@ def update_workorder_status(workorder_id: str, payload: WorkOrderStatusUpdate, r
 
 
 @router.post("/{workorder_id}/send-approval", response_model=ApprovalSendOut)
-def send_approval_link(workorder_id: str, request: Request):
+def send_approval_link(workorder_id: str, request: Request, payload: SendApprovalIn | None = None):
     correlation_id = get_request_correlation_id(request)
     auth = verify_firebase_jwt(request)
     tenant_id, user_id, roles = _load_user_and_tenant(auth.firebase_uid)
@@ -350,11 +383,22 @@ def send_approval_link(workorder_id: str, request: Request):
         if active_event and parse_iso(active_event.expires_at) <= now_utc():
             active_event.status = "EXPIRED"
 
+        preferred_channel = payload.channel if payload else None
+        if preferred_channel:
+            site = db.execute(select(Site).where(Site.id == wo.site_id)).scalar_one_or_none()
+            if not site:
+                raise HTTPException(status_code=404, detail="Site not found")
+            if preferred_channel == "EMAIL" and not site.site_supervisor_email:
+                raise HTTPException(status_code=400, detail="Site supervisor email is required")
+            if preferred_channel == "WHATSAPP" and not site.site_supervisor_phone:
+                raise HTTPException(status_code=400, detail="Site supervisor phone is required")
+
         event = create_and_send_approval_event(
             db,
             tenant_id=tenant_id,
             workorder_id=wo.id,
             correlation_id=correlation_id,
+            preferred_channel=preferred_channel,
         )
         return _approval_event_out(event)
 

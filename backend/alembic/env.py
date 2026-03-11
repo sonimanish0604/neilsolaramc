@@ -15,6 +15,10 @@ from app.db.models.workorder import (  # noqa
     WorkOrder, ChecklistResponse, NetMeterReading, InverterReading,
     Media, Signature, Report, ApprovalEvent
 )
+from app.db.models.notification import (  # noqa
+    NotificationEvent, TenantNotificationSetting, NotificationTemplate, NotificationLog,
+    NotificationDeliveryJob
+)
 
 config = context.config
 fileConfig(config.config_file_name)

@@ -37,7 +37,7 @@ scenario_uc_1a_002_customer_site_flow() {
   run_test "${prefix} list customers" "200" "${customers_list_code}"
 
   local site_payload
-  site_payload="{\"customer_id\":\"${customer_id}\",\"site_name\":\"Functional Site\",\"address\":\"Andheri\",\"capacity_kw\":10.5,\"status\":\"ACTIVE\",\"site_supervisor_name\":\"Supervisor\",\"site_supervisor_phone\":\"9999999999\"}"
+  site_payload="{\"customer_id\":\"${customer_id}\",\"site_name\":\"Functional Site\",\"address\":\"Andheri\",\"capacity_kw\":10.5,\"status\":\"ACTIVE\",\"site_supervisor_name\":\"Supervisor\",\"site_supervisor_email\":\"supervisor@example.com\",\"site_supervisor_phone\":\"9999999999\"}"
   local site_out="${REPORT_DIR}/uc_1a_002_site.json"
   local site_code
   site_code="$(http_code POST "${SERVICE_URL}/sites" "${site_payload}" "${site_out}" "false" "${FUNCTIONAL_BEARER_TOKEN}")"
@@ -69,4 +69,3 @@ scenario_uc_1a_002_customer_site_flow() {
   missing_site_code="$(http_code PATCH "${SERVICE_URL}/sites/00000000-0000-0000-0000-000000000001" '{"status":"ACTIVE"}' "${REPORT_DIR}/uc_1a_002_site_missing.json" "false" "${FUNCTIONAL_BEARER_TOKEN}")"
   run_test "${prefix} update missing site returns 404" "404" "${missing_site_code}"
 }
-

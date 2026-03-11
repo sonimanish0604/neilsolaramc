@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field, model_validator
 
 
 class WorkOrderCreate(BaseModel):
     site_id: str
     assigned_tech_user_id: str
-    scheduled_at: str  # ISO
+    scheduled_at: str
 
 
 class WorkOrderOut(BaseModel):
@@ -73,6 +75,10 @@ class WorkOrderStatusUpdate(BaseModel):
     status: str = Field(pattern="^(IN_PROGRESS|CLOSED)$")
 
 
+class SendApprovalIn(BaseModel):
+    channel: str = Field(default="WHATSAPP", pattern="^(WHATSAPP|EMAIL)$")
+
+
 class ApprovalSendOut(BaseModel):
     event_id: str
     correlation_id: str | None
@@ -84,6 +90,12 @@ class ApprovalSendOut(BaseModel):
     approval_link: str
     attempt_count: int
     next_retry_at: str | None
+    approval_token: str | None = None
+    approval_url: str | None = None
+    report_url: str | None = None
+    delivery_status: str | None = None
+    provider_message_id: str | None = None
+    detail: str | None = None
 
 
 class ApprovalResendIn(BaseModel):

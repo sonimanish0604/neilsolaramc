@@ -87,7 +87,7 @@ customers_list_code="$(curl -s -o /tmp/customers_list.out -w "%{http_code}" -X G
 echo "[integration] Happy path: create site"
 site_code="$(curl -s -o /tmp/site.out -w "%{http_code}" -X POST "${API_URL}/sites" \
   -H "Content-Type: application/json" \
-  -d "{\"customer_id\":\"${customer_id}\",\"site_name\":\"CI Site 1\",\"address\":\"Andheri\",\"capacity_kw\":10.5,\"status\":\"ACTIVE\",\"site_supervisor_name\":\"Supervisor\",\"site_supervisor_phone\":\"9999999999\"}")"
+  -d "{\"customer_id\":\"${customer_id}\",\"site_name\":\"CI Site 1\",\"address\":\"Andheri\",\"capacity_kw\":10.5,\"status\":\"ACTIVE\",\"site_supervisor_name\":\"Supervisor\",\"site_supervisor_email\":\"supervisor@example.com\",\"site_supervisor_phone\":\"9999999999\"}")"
 [[ "${site_code}" == "200" ]] || { echo "Expected 200 site create, got ${site_code}"; cat /tmp/site.out; exit 1; }
 site_id="$(python3 -c 'import json;print(json.load(open("/tmp/site.out"))["id"])')"
 

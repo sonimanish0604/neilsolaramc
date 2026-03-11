@@ -1,0 +1,6 @@
+Deprecated legacy placeholder.
+
+Use:
+- docs/NOTIFICATION_ENGINE_PHASEB.md
+- docs/NOTIFICATION_RETENTION.md
+- docs/NOTIFICATION_EVENTS.md

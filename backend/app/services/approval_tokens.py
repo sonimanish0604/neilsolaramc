@@ -59,25 +59,41 @@ def iso_utc(dt: datetime) -> str:
 
 
 def parse_iso(value: str) -> datetime:
-    return datetime.fromisoformat(value)
+    parsed = datetime.fromisoformat(value)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
-def build_approval_link(token: str) -> str:
-    base = settings.approval_link_base_url.rstrip("/")
-    return f"{base}/{token}"
-
-
-def generate_token() -> str:
+def generate_approval_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def generate_token() -> str:
+    return generate_approval_token()
+
+
+def compute_expiry_iso(ttl_hours: int, now: datetime | None = None) -> str:
+    base = now or now_utc()
+    return iso_utc(base + timedelta(hours=ttl_hours))
+
+
 def compute_expiry(ttl_hours: int | None = None) -> str:
-    ttl = ttl_hours or settings.approval_token_ttl_hours
-    return iso_utc(now_utc() + timedelta(hours=ttl))
+    return compute_expiry_iso(ttl_hours or settings.approval_token_ttl_hours)
+
+
+def is_expired_iso(expires_at: str, now: datetime | None = None) -> bool:
+    return parse_iso(expires_at) < (now or now_utc())
+
+
+def build_approval_link(token: str) -> str:
+    base = (settings.approval_base_url or settings.approval_link_base_url or "").strip().rstrip("/")
+    if not base:
+        base = "https://app.neilsolar.com/approve"
+    return f"{base}/{token}"
 
 
 def compute_next_retry(attempt_count: int) -> str:
-    # Exponential backoff capped via max attempts control at caller side.
     multiplier = max(1, 2 ** max(0, attempt_count - 1))
     return iso_utc(now_utc() + timedelta(seconds=settings.approval_retry_backoff_seconds * multiplier))
 
@@ -102,9 +118,6 @@ def should_send_reminder(
 
 
 def classify_provider_failure(channel: str, error_message: str) -> bool:
-    """
-    Returns True when failure is retryable, False when permanent.
-    """
     msg = error_message.lower()
 
     permanent_markers = [
@@ -132,28 +145,28 @@ def classify_provider_failure(channel: str, error_message: str) -> bool:
     if any(marker in msg for marker in retryable_markers):
         return True
 
-    # Unknown provider failures default to retryable.
     return True
 
 
-def _deliver_link(site: Site, link: str) -> DeliveryResult:
-    failures: list[ChannelAttemptFailure] = []
-
-    if site.site_supervisor_phone:
+def _channel_attempt(
+    *,
+    site: Site,
+    link: str,
+    channel: str,
+) -> DeliveryResult:
+    if channel == "WHATSAPP":
+        if not site.site_supervisor_phone:
+            raise ApprovalDeliveryError("missing recipient contact", retryable=False)
         try:
             send_whatsapp_placeholder(site.site_supervisor_phone, f"Approval link: {link}")
             return DeliveryResult(channel="WHATSAPP", recipient=site.site_supervisor_phone)
-        except Exception as exc:  # pragma: no cover - placeholder today, real provider later
+        except Exception as exc:  # pragma: no cover
             err = str(exc)
-            failures.append(
-                ChannelAttemptFailure(
-                    channel="WHATSAPP",
-                    error=err,
-                    retryable=classify_provider_failure("WHATSAPP", err),
-                )
-            )
+            raise ApprovalDeliveryError(err, retryable=classify_provider_failure("WHATSAPP", err)) from exc
 
-    if site.site_supervisor_email:
+    if channel == "EMAIL":
+        if not site.site_supervisor_email:
+            raise ApprovalDeliveryError("missing recipient contact", retryable=False)
         try:
             send_email_placeholder(
                 site.site_supervisor_email,
@@ -161,14 +174,24 @@ def _deliver_link(site: Site, link: str) -> DeliveryResult:
                 f"Please review and sign: {link}",
             )
             return DeliveryResult(channel="EMAIL", recipient=site.site_supervisor_email)
-        except Exception as exc:  # pragma: no cover - placeholder today, real provider later
+        except Exception as exc:  # pragma: no cover
             err = str(exc)
+            raise ApprovalDeliveryError(err, retryable=classify_provider_failure("EMAIL", err)) from exc
+
+    raise ApprovalDeliveryError(f"unsupported channel {channel}", retryable=False)
+
+
+def _deliver_link(site: Site, link: str, preferred_channel: str | None = None) -> DeliveryResult:
+    if preferred_channel:
+        return _channel_attempt(site=site, link=link, channel=preferred_channel)
+
+    failures: list[ChannelAttemptFailure] = []
+    for channel in ("WHATSAPP", "EMAIL"):
+        try:
+            return _channel_attempt(site=site, link=link, channel=channel)
+        except ApprovalDeliveryError as exc:
             failures.append(
-                ChannelAttemptFailure(
-                    channel="EMAIL",
-                    error=err,
-                    retryable=classify_provider_failure("EMAIL", err),
-                )
+                ChannelAttemptFailure(channel=channel, error=str(exc), retryable=exc.retryable)
             )
 
     if not failures:
@@ -195,17 +218,19 @@ def create_and_send_approval_event(
     workorder_id: UUID,
     reminder_count: int = 0,
     correlation_id: str | None = None,
+    preferred_channel: str | None = None,
 ) -> ApprovalEvent:
     site = _load_site_for_workorder(db, workorder_id)
     if not site:
         raise ValueError("Site not found for workorder")
 
+    chosen_channel = preferred_channel or ("WHATSAPP" if site.site_supervisor_phone else "EMAIL")
     event = ApprovalEvent(
         tenant_id=tenant_id,
         workorder_id=workorder_id,
-        token=generate_token(),
+        token=generate_approval_token(),
         correlation_id=correlation_id,
-        channel="WHATSAPP" if site.site_supervisor_phone else "EMAIL",
+        channel=chosen_channel,
         expires_at=compute_expiry(),
         status="QUEUED",
         attempt_count=0,
@@ -218,16 +243,16 @@ def create_and_send_approval_event(
     if reminder_count > 0:
         event.last_reminder_at = iso_utc(now_utc())
 
-    _attempt_send(db, event, site)
+    _attempt_send(db, event, site, preferred_channel=chosen_channel)
     return event
 
 
-def _attempt_send(db: Session, event: ApprovalEvent, site: Site) -> None:
+def _attempt_send(db: Session, event: ApprovalEvent, site: Site, *, preferred_channel: str | None = None) -> None:
     link = build_approval_link(event.token)
     event.attempt_count += 1
 
     try:
-        delivery = _deliver_link(site, link)
+        delivery = _deliver_link(site, link, preferred_channel or event.channel)
         event.channel = delivery.channel
         event.recipient = delivery.recipient
         event.status = "SENT"
@@ -237,9 +262,7 @@ def _attempt_send(db: Session, event: ApprovalEvent, site: Site) -> None:
     except ApprovalDeliveryError as exc:
         event.status = "DELIVERY_FAILED" if exc.retryable else "DELIVERY_PERMANENT_FAILED"
         event.last_error = str(exc)[:1000]
-        if not exc.retryable:
-            event.next_retry_at = None
-        elif event.attempt_count >= settings.approval_retry_max_attempts:
+        if not exc.retryable or event.attempt_count >= settings.approval_retry_max_attempts:
             event.next_retry_at = None
         else:
             event.next_retry_at = compute_next_retry(event.attempt_count)
@@ -260,7 +283,7 @@ def retry_delivery_if_due(db: Session, event: ApprovalEvent) -> bool:
         event.last_error = "site missing for workorder"
         return False
 
-    _attempt_send(db, event, site)
+    _attempt_send(db, event, site, preferred_channel=event.channel)
     return event.status == "SENT"
 
 
@@ -298,7 +321,7 @@ def resend_approval_link(
         current.expires_at = compute_expiry()
         current.reminder_count = current.reminder_count + (1 if is_reminder else 0)
         current.last_reminder_at = iso_utc(now_utc()) if is_reminder else current.last_reminder_at
-        _attempt_send(db, current, site)
+        _attempt_send(db, current, site, preferred_channel=current.channel)
         return current
 
     if current:
@@ -310,6 +333,7 @@ def resend_approval_link(
         workorder_id=workorder_id,
         reminder_count=(current.reminder_count + 1) if (is_reminder and current) else 0,
         correlation_id=correlation_id,
+        preferred_channel=current.channel if current else None,
     )
     if current:
         current.superseded_by_event_id = event.id

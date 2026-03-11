@@ -1,0 +1,6 @@
+Deprecated legacy note.
+
+Canonical notification design is email-first (Phase B) and documented in:
+- docs/NOTIFICATION_ENGINE_PHASEB.md
+- docs/NOTIFICATION_EVENTS.md
+- docs/NOTIFICATION_RETENTION.md
