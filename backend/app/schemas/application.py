@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CustomerCreate(BaseModel):
@@ -33,6 +33,12 @@ class SiteCreate(BaseModel):
     site_supervisor_name: Optional[str] = Field(default=None, max_length=200)
     site_supervisor_email: Optional[str] = Field(default=None, max_length=200)
     site_supervisor_phone: Optional[str] = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def validate_contact_present(self):
+        if not (self.site_supervisor_phone or self.site_supervisor_email):
+            raise ValueError("Either site_supervisor_phone or site_supervisor_email is required")
+        return self
 
 
 class SiteUpdate(BaseModel):

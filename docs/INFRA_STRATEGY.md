@@ -30,8 +30,6 @@ We intentionally avoid premature infrastructure complexity.
 | Branch   | Environment | Cloud Run Service |
 |----------|------------|------------------|
 | develop  | dev        | neilsolar-dev-api |
-| test     | test       | neilsolar-test-api |
-| staging  | staging    | neilsolar-staging-api |
 | main     | production | neilsolar-prod-api |
 
 ### Why Cloud Run (Container-first)
@@ -80,7 +78,7 @@ Even without infrastructure-first automation, we maintain:
 - Admin vs App DB roles (BYPASSRLS separation)
 - Strict tenant isolation at database level
 - Branch-based release discipline
-- Staging validation before production merge
+- Dev validation before production merge
 
 Tenant isolation is enforced at the database kernel level.
 

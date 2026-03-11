@@ -1,12 +1,14 @@
 from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel, Field, model_validator
 
 
 class WorkOrderCreate(BaseModel):
     site_id: str
     assigned_tech_user_id: str
-    scheduled_at: str  # ISO
+    scheduled_at: str
 
 
 class WorkOrderOut(BaseModel):
@@ -77,13 +79,55 @@ class SendApprovalIn(BaseModel):
     channel: str = Field(default="WHATSAPP", pattern="^(WHATSAPP|EMAIL)$")
 
 
-class SendApprovalOut(BaseModel):
-    status: str
+class ApprovalSendOut(BaseModel):
+    event_id: str
+    correlation_id: str | None
+    workorder_id: str
     channel: str
-    expires_at: str
-    approval_token: str
-    approval_url: str
+    recipient: str | None
+    status: str
+    token_expires_at: str
+    approval_link: str
+    attempt_count: int
+    next_retry_at: str | None
+    approval_token: str | None = None
+    approval_url: str | None = None
     report_url: str | None = None
-    delivery_status: str
+    delivery_status: str | None = None
     provider_message_id: str | None = None
     detail: str | None = None
+
+
+class ApprovalResendIn(BaseModel):
+    mode: str = Field(default="NEW_TOKEN", pattern="^(NEW_TOKEN|EXTEND)$")
+
+
+class ApprovalReminderRunOut(BaseModel):
+    scanned: int
+    reminders_sent: int
+    skipped: int
+
+
+class ReportJobCreateIn(BaseModel):
+    is_final: bool = False
+    idempotency_key: str | None = None
+    simulate_failures: int = Field(default=0, ge=0, le=3)
+
+
+class ReportJobOut(BaseModel):
+    job_id: str
+    correlation_id: str | None
+    workorder_id: str
+    job_type: str
+    status: str
+    attempt_count: int
+    max_attempts: int
+    next_retry_at: str | None
+    last_error: str | None
+    generated_report_id: str | None
+    report_pdf_url: str | None
+
+
+class GenerateReportSyncOut(BaseModel):
+    status: str
+    job: ReportJobOut

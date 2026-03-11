@@ -202,6 +202,11 @@ def update_site(site_id: str, payload: SiteUpdate, request: Request):
             site.site_supervisor_email = payload.site_supervisor_email
         if payload.site_supervisor_phone is not None:
             site.site_supervisor_phone = payload.site_supervisor_phone
+        if not (site.site_supervisor_phone or site.site_supervisor_email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Either site_supervisor_phone or site_supervisor_email is required",
+            )
 
         return SiteOut(
             id=str(site.id),

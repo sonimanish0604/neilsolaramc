@@ -13,7 +13,11 @@ from app.db.models.user import User, UserRole  # noqa
 from app.db.models.site import Customer, Site  # noqa
 from app.db.models.workorder import (  # noqa
     WorkOrder, ChecklistResponse, NetMeterReading, InverterReading,
-    Media, Signature, Report, ApprovalEvent
+    Media, Signature, Report, ReportJob, ApprovalEvent
+)
+from app.db.models.notification import (  # noqa
+    NotificationEvent, TenantNotificationSetting, NotificationTemplate, NotificationLog,
+    NotificationDeliveryJob
 )
 from app.db.models.notification import (  # noqa
     NotificationEvent, TenantNotificationSetting, NotificationTemplate, NotificationLog,

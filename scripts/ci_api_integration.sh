@@ -13,6 +13,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
+dump_compose_diagnostics() {
+  echo "[integration] Docker Compose status"
+  docker compose --env-file "${ENV_FILE}" ps || true
+  echo "[integration] API logs"
+  docker compose --env-file "${ENV_FILE}" logs api --tail=200 || true
+  echo "[integration] Postgres logs"
+  docker compose --env-file "${ENV_FILE}" logs postgres --tail=100 || true
+  echo "[integration] Notification orchestrator logs"
+  docker compose --env-file "${ENV_FILE}" logs notification-orchestrator --tail=100 || true
+}
+
 echo "[integration] Starting local stack with Docker Compose"
 docker compose --env-file "${ENV_FILE}" up -d --build
 
@@ -29,6 +40,7 @@ code="$(curl -s -o /tmp/health.out -w "%{http_code}" "${API_URL}/health" || true
 if [[ "${code}" != "200" ]]; then
   echo "[integration] health check failed with HTTP ${code}"
   cat /tmp/health.out || true
+  dump_compose_diagnostics
   exit 1
 fi
 
@@ -94,7 +106,7 @@ site_id="$(python3 -c 'import json;print(json.load(open("/tmp/site.out"))["id"])
 echo "[integration] Rainy path: duplicate site name per customer -> 409"
 dup_site_code="$(curl -s -o /tmp/site_dup.out -w "%{http_code}" -X POST "${API_URL}/sites" \
   -H "Content-Type: application/json" \
-  -d "{\"customer_id\":\"${customer_id}\",\"site_name\":\"CI Site 1\",\"address\":\"Andheri\",\"status\":\"ACTIVE\"}")"
+  -d "{\"customer_id\":\"${customer_id}\",\"site_name\":\"CI Site 1\",\"address\":\"Andheri\",\"status\":\"ACTIVE\",\"site_supervisor_email\":\"duplicate-supervisor@example.com\"}")"
 [[ "${dup_site_code}" == "409" ]] || { echo "Expected 409 duplicate site, got ${dup_site_code}"; cat /tmp/site_dup.out; exit 1; }
 
 echo "[integration] Happy path: list sites by customer filter"

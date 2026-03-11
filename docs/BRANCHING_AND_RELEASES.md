@@ -1,135 +1,43 @@
-# Branching and Release Strategy – NEIL Solar AMC SaaS
+# Branching and Release Strategy – Current MVP
 
-## 1. Branch Model
+## Active Branch Model
 
 Long-lived branches:
-
-- main → Production
-- staging → Pre-production
-- test → QA validation
-- develop → Active development
+- `develop` -> Dev environment
+- `main` -> Production environment
 
 Short-lived branches:
+- `feature/<feature-name>`
+- `fix/<fix-name>`
+- `doc/<doc-change-name>`
 
-- feature/<feature-name>
-- doc/<if-adding-only-documents>
-- fix/<adding fixes>
-- 
+## Promotion Flow
+- `feature/*` -> `develop`
+- `develop` -> `main`
 
-Example:
-feature/phase0-control-plane
-feature/workorder-inverters
-feature/logo-upload
+Rules:
+- No direct commits to `main`
+- All changes through PRs
+- CI/CD and post-deploy checks must pass before promotion
 
----
+## Environment Mapping
 
-## 2. Environment Mapping
+| Branch | Environment | Cloud Run Service |
+|---|---|---|
+| develop | dev | neilsolar-dev-api |
+| main | prod | neilsolar-prod-api |
 
-| Branch     | Environment | Cloud Run Service         |
-|------------|------------|----------------------------|
-| develop    | dev        | neilsolar-dev-api          |
-| test       | test       | neilsolar-test-api         |
-| staging    | staging    | neilsolar-staging-api      |
-| main       | production | neilsolar-prod-api         |
+## Delivery Workflow
+1. Create branch from `develop`
+2. Implement and validate locally
+3. Push branch and open PR to `develop`
+4. Merge to `develop` after checks
+5. Promote to `main` through PR after validation
 
-Cloud Run services are configured for continuous deployment from their respective branches.
+## Database Migrations
+- Migrations are executed in Cloud Build before service deploy.
+- Local/dev checks should still run `alembic upgrade head` before API validation.
 
----
-
-## 3. Development Workflow
-
-### Step 1 – Create Feature Branch
-
-Branch from develop:
-
-git checkout develop
-git pull
-git checkout -b feature/<feature-name>
-
----
-
-### Step 2 – Local Development
-
-- Implement feature
-- Run locally:
-  uvicorn app.main:app --reload
-- Apply migrations locally or against dev DB:
-  alembic upgrade head
-- Validate endpoints
-
----
-
-### Step 3 – Push Feature Branch
-
-git push -u origin feature/<feature-name>
-
----
-
-### Step 4 – Pull Request to develop
-
-- Open PR: feature → develop
-- Review changes
-- Merge PR
-
-After merge:
-- GitHub updates develop branch
-- Cloud Build (GCP) builds Docker image
-- Cloud Run dev service redeploys automatically
-
----
-
-## 4. Promotion Flow
-
-### develop → test
-
-- Open PR
-- Merge
-- Cloud Run test service auto-deploys
-- Run QA validation
-
-### test → staging
-
-- Open PR
-- Merge
-- Cloud Run staging auto-deploys
-- Run pre-production validation
-
-### staging → main
-
-- Open PR
-- Merge
-- Cloud Run production auto-deploys
-- Run smoke tests
-
----
-
-## 5. Database Migrations
-
-Cloud Run does not automatically run migrations.
-
-Before validating any environment:
-- Run alembic upgrade head against that environment's DB.
-
-Future improvement:
-- Add migration step inside Cloud Build pipeline.
-
----
-
-## 6. Ephemeral Environments
-
-Test branch may remain persistent in early stage.
-
-Infrastructure tear-down automation is optional and can be introduced later using Terraform.
-
-Early stage recommendation:
-- Keep dev, staging, production persistent.
-- Avoid complex ephemeral infra until user base grows.
-
----
-
-## 7. Rules
-
-- Never commit directly to main.
-- All changes must go through feature branches.
-- All production releases must pass staging validation.
-- RLS tenant isolation must be verified in test before promotion.
+## Future Expansion (Deferred)
+- Additional long-lived branches/environments (`test`, `staging`) are deferred.
+- Re-introduce only when release governance needs that complexity.

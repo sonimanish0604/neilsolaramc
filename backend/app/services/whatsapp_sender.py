@@ -78,3 +78,10 @@ def send_whatsapp_message(
         delivery_status=body.get("status", "queued"),
         message_id=body.get("sid"),
     )
+
+
+def send_whatsapp_placeholder(phone: str, message: str) -> None:
+    """
+    Backward-compatible wrapper for older approval/retry code paths.
+    """
+    send_whatsapp_message(phone, message)
