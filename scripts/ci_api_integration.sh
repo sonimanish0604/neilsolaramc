@@ -106,7 +106,7 @@ site_id="$(python3 -c 'import json;print(json.load(open("/tmp/site.out"))["id"])
 echo "[integration] Rainy path: duplicate site name per customer -> 409"
 dup_site_code="$(curl -s -o /tmp/site_dup.out -w "%{http_code}" -X POST "${API_URL}/sites" \
   -H "Content-Type: application/json" \
-  -d "{\"customer_id\":\"${customer_id}\",\"site_name\":\"CI Site 1\",\"address\":\"Andheri\",\"status\":\"ACTIVE\"}")"
+  -d "{\"customer_id\":\"${customer_id}\",\"site_name\":\"CI Site 1\",\"address\":\"Andheri\",\"status\":\"ACTIVE\",\"site_supervisor_email\":\"duplicate-supervisor@example.com\"}")"
 [[ "${dup_site_code}" == "409" ]] || { echo "Expected 409 duplicate site, got ${dup_site_code}"; cat /tmp/site_dup.out; exit 1; }
 
 echo "[integration] Happy path: list sites by customer filter"
