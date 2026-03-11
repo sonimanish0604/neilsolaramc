@@ -1,223 +1,197 @@
-# Request Payload Examples – All Solar AMC SaaS (MVP)
+# Request Payload Examples (Current MVP)
 
 All authenticated endpoints require:
-Authorization: Bearer <Firebase JWT>
-
-Tenant is derived from JWT and enforced server-side.
+- `Authorization: Bearer <Firebase JWT>`
 
 ---
 
-# 1️⃣ Create WorkOrder (Schedule AMC Visit)
+## 1) Create Site (with supervisor contact)
+`POST /sites`
 
-POST /workorders
+```json
+{
+  "customer_id": "8d3e9c4f-5e7a-4c71-b2e4-1a2d3c4f5678",
+  "site_name": "LDA Colony Rooftop",
+  "address": "Lucknow",
+  "capacity_kw": 150,
+  "status": "ACTIVE",
+  "site_supervisor_name": "Mr. Sharma",
+  "site_supervisor_phone": "+919811112222",
+  "site_supervisor_email": "supervisor@example.com"
+}
+```
 
-Request:
+Rule:
+- at least one of `site_supervisor_phone` or `site_supervisor_email` is required.
+
+---
+
+## 2) Create WorkOrder
+`POST /workorders`
+
+```json
 {
   "site_id": "8d3e9c4f-5e7a-4c71-b2e4-1a2d3c4f5678",
   "assigned_tech_user_id": "2a6c1b45-9876-4e11-8a33-abc123def456",
   "scheduled_at": "2026-03-10T10:00:00+05:30"
 }
-
-Response:
-{
-  "id": "wo-12345",
-  "status": "SCHEDULED"
-}
+```
 
 ---
 
-# 2️⃣ Get Assigned WorkOrders (Technician)
+## 3) Submit WorkOrder
+`POST /workorders/{workorder_id}/submit`
 
-GET /workorders?assigned_to=me
-
-Response:
-[
-  {
-    "id": "wo-12345",
-    "site_name": "LDA Colony Rooftop",
-    "scheduled_at": "2026-03-10T10:00:00+05:30",
-    "status": "SCHEDULED"
-  }
-]
-
----
-
-# 3️⃣ Submit WorkOrder (Technician Completion)
-
-POST /workorders/{workorder_id}/submit
-
-Request:
+```json
 {
   "visit_status": "NEEDS_ATTENTION",
   "summary_notes": "Earthing bolt loose near inverter 2",
-
   "inverter_readings": [
     {
       "inverter_id": "inv-uuid-1",
       "power_kw": 21.5,
       "day_kwh": 87.3,
       "total_kwh": 15432.7
-    },
-    {
-      "inverter_id": "inv-uuid-2",
-      "power_kw": 22.1,
-      "day_kwh": 90.0,
-      "total_kwh": 16002.3
     }
   ],
-
   "net_meter": {
     "net_kwh": 123.4,
     "imp_kwh": 567.8,
     "exp_kwh": 444.4
   },
-
   "checklist_answers": {
-    "solar_module_clean": {
-      "value": "YES",
-      "notes": ""
-    },
-    "inverter_cabling": {
-      "value": "AC",
-      "notes": ""
-    },
-    "inverter_status": {
-      "value": "ON",
-      "notes": ""
-    },
-    "structure_condition": {
-      "value": "PASS",
-      "notes": ""
-    },
-    "earthing_status": {
-      "value": "FAIL",
-      "notes": "Loose bolt near grounding strip"
-    },
-    "lightning_arrester_status": {
-      "value": "PASS",
-      "notes": ""
-    },
-    "monitoring_system_status": {
-      "value": "PASS",
-      "notes": ""
-    },
-    "conduit_pipe_status": {
-      "value": "PASS",
-      "notes": ""
-    },
-    "acdb_ajb_status": {
-      "value": "PASS",
-      "notes": ""
-    }
+    "solar_module_clean": {"value": "YES", "notes": ""},
+    "earthing_status": {"value": "FAIL", "notes": "Loose bolt"}
   },
-
   "media": [
     {
       "item_key": "net_meter_readings",
       "object_path": "neilsolar-dev-media/workorders/wo-12345/photos/net-meter-1.jpg",
       "content_type": "image/jpeg",
       "size_bytes": 245678
-    },
-    {
-      "item_key": "earthing_status",
-      "object_path": "neilsolar-dev-media/workorders/wo-12345/photos/earthing-issue.jpg",
-      "content_type": "image/jpeg",
-      "size_bytes": 187543
     }
   ],
-
   "tech_signature": {
     "signer_name": "Ravi Kumar",
     "signer_phone": "+919876543210",
     "signature_object_path": "neilsolar-dev-media/workorders/wo-12345/signatures/tech.png"
   }
 }
-
-Server Validations:
-- net_kwh, imp_kwh, exp_kwh are mandatory
-- At least 1 photo where item_key == "net_meter_readings"
-- Total photos <= tenant.plan_limits.max_photos_per_visit
-- visit_status is required
-- tech_signature required
-
-Response:
-{
-  "status": "SUBMITTED",
-  "message": "WorkOrder submitted successfully"
-}
+```
 
 ---
 
-# 4️⃣ Generate Report (Async Trigger)
+## 4) Generate Report Async (idempotent)
+`POST /workorders/{workorder_id}/generate-report-async`
 
-POST /workorders/{workorder_id}/generate-report
-
-Response:
+```json
 {
-  "report_id": "report-uuid-123",
-  "pdf_url": "https://storage.googleapis.com/neilsolar-dev-reports/..."
+  "is_final": false,
+  "idempotency_key": "phase1c-async-123"
 }
+```
+
+Response shape:
+```json
+{
+  "job_id": "<uuid>",
+  "correlation_id": "<uuid>",
+  "workorder_id": "<uuid>",
+  "job_type": "DRAFT",
+  "status": "QUEUED",
+  "attempt_count": 0,
+  "max_attempts": 3,
+  "next_retry_at": null,
+  "last_error": null,
+  "generated_report_id": null,
+  "report_pdf_url": null
+}
+```
 
 ---
 
-# 5️⃣ Send Approval Link (WhatsApp)
+## 5) Send Approval Link
+`POST /workorders/{workorder_id}/send-approval`
 
-POST /workorders/{workorder_id}/send-approval
+Body: empty
 
-Request:
+Response shape:
+```json
 {
-  "channel": "WHATSAPP"
-}
-
-Response:
-{
+  "event_id": "<uuid>",
+  "correlation_id": "<uuid>",
+  "workorder_id": "<uuid>",
+  "channel": "WHATSAPP",
+  "recipient": "+919811112222",
   "status": "SENT",
-  "approval_token": "random-secure-token",
-  "expires_at": "2026-03-15T23:59:59+05:30"
+  "token_expires_at": "2026-03-15T23:59:59+05:30",
+  "approval_link": "http://localhost:8000/approve/<token>",
+  "attempt_count": 1,
+  "next_retry_at": null
 }
+```
 
 ---
 
-# 6️⃣ Customer Opens Approval Link
+## 6) Resend Approval Link
+`POST /workorders/{workorder_id}/resend-approval`
 
-GET /approve/{token}
+```json
+{
+  "mode": "NEW_TOKEN"
+}
+```
+
+`mode` options:
+- `NEW_TOKEN` (supersedes prior token)
+- `EXTEND` (extends current token TTL)
+
+---
+
+## 7) Run Approval Reminder Sweep
+`POST /workorders/approval-reminders/run`
+
+Body: empty
 
 Response:
+```json
 {
-  "workorder_id": "wo-12345",
-  "site_name": "LDA Colony Rooftop",
-  "visit_status": "NEEDS_ATTENTION",
-  "scheduled_at": "2026-03-10T10:00:00+05:30",
-  "summary": {
-    "pass_count": 8,
-    "fail_count": 1
-  },
-  "report_pdf_url": "https://signed-url-to-pdf",
-  "sign_required": true
+  "scanned": 10,
+  "reminders_sent": 2,
+  "skipped": 8
 }
+```
 
 ---
 
-# 7️⃣ Customer Signs
+## 8) Run/Retry Report Job
+`POST /workorders/report-jobs/{job_id}/run`  
+`POST /workorders/report-jobs/{job_id}/retry`
 
-POST /approve/{token}/sign
+Body: empty
 
-Request:
+---
+
+## 9) Customer Opens Approval Link
+`GET /approve/{token}`
+
+---
+
+## 10) Customer Signs
+`POST /approve/{token}/sign`
+
+```json
 {
   "signer_name": "Mr. Sharma",
   "signer_phone": "+919811112222",
   "signature_object_path": "neilsolar-dev-media/workorders/wo-12345/signatures/customer.png"
 }
+```
 
 Response:
+```json
 {
   "status": "SIGNED",
-  "final_report_pdf_url": "https://signed-url-to-final-pdf"
+  "final_report_pdf_url": "reports/<workorder_id>/report.pdf"
 }
-
-Server Actions:
-- Validate token not expired
-- Insert signature row (CUSTOMER_SUPERVISOR)
-- Regenerate final PDF (is_final = true)
-- Update workorder status → CUSTOMER_SIGNED
-- Write audit_log entry
+```

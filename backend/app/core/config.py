@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", env_ignore_empty=True)
 
     app_name: str = "neilsolar-api"
     app_env: str = "dev"
@@ -17,15 +17,24 @@ class Settings(BaseSettings):
 
     approval_token_ttl_hours: int = 72
     approval_base_url: str = "https://app.neilsolar.com/approve"
+    approval_link_base_url: str | None = None
+    approval_retry_max_attempts: int = 3
+    approval_retry_backoff_seconds: int = 300
+    approval_reminder_lead_hours: int = 24
+    approval_max_reminders: int = 2
     bootstrap_admin_key: str = "dev-bootstrap-key"
+
     twilio_enabled: bool = False
     twilio_account_sid: str | None = None
     twilio_auth_token: str | None = None
     twilio_whatsapp_from: str = "whatsapp:+14155238886"
     twilio_request_timeout_seconds: int = 10
+
     pdf_brand_label: str = "NEIL Solar AMC"
     report_storage_backend: str = "AUTO"
     local_reports_dir: str = "/tmp/neilsolar-reports"
+    report_job_max_attempts: int = 3
+    report_job_backoff_seconds: int = 120
 
     notification_poll_interval_seconds: int = 5
     notification_batch_size: int = 20
@@ -79,7 +88,6 @@ class Settings(BaseSettings):
     @field_validator("database_url", "database_admin_url", mode="before")
     @classmethod
     def _strip_db_urls(cls, value: str) -> str:
-        # Secrets copied from shell/console can accidentally include trailing spaces/newlines.
         return value.strip()
 
 

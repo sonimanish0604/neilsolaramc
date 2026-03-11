@@ -39,8 +39,8 @@
 | P1B-007 | P0 | INTEGRATION | Final signed PDF generation after customer sign | final report persisted with `is_final=true` |
 | P1B-008 | P0 | INTEGRATION | Workorder close after customer sign | state reaches `CUSTOMER_SIGNED` then `CLOSED` |
 | P1B-009 | P1 | UNIT | Token generator uniqueness/entropy checks | no collisions in test batch |
-| P1B-010 | P1 | INTEGRATION | Twilio sandbox send success path | approval event logged as delivered/sent |
-| P1B-011 | P1 | INTEGRATION | Twilio sandbox failure path | failure logged, retriable status retained |
+| P1B-010 | P1 | INTEGRATION | Notification send success path (configured provider) | approval event logged as delivered/sent |
+| P1B-011 | P1 | INTEGRATION | Notification failure path (configured provider) | failure logged with retry/permanent classification |
 | P1B-012 | P1 | MANUAL | Report branding/logo rendering | report layout matches approved template |
 | P1B-013 | P1 | POST_DEPLOY | Full approval flow on `develop` | submit -> link open -> sign -> close passes |
 | P1B-014 | P2 | MANUAL | Mobile browser sign flow usability | signature capture succeeds on phone viewport |
@@ -59,13 +59,16 @@ Phase 1B automation mapping:
 | ID | Priority | Type | Scenario | Expected Result |
 |---|---|---|---|---|
 | P1C-001 | P0 | INTEGRATION | Retry report generation on transient error | retries occur, eventually succeeds or marks failed cleanly |
-| P1C-002 | P0 | INTEGRATION | Retry Twilio send on transient error | bounded retries with clear terminal state |
+| P1C-002 | P0 | INTEGRATION | Retry notification send on transient error | bounded retries with clear terminal state |
 | P1C-003 | P0 | INTEGRATION | Duplicate delivery callback/request | idempotent handling, no duplicate state mutation |
 | P1C-004 | P0 | INTEGRATION | Token revocation before use | access denied after revocation |
 | P1C-005 | P1 | POST_DEPLOY | Expanded regression suite on `develop` | critical journeys pass in one run |
 | P1C-006 | P1 | INTEGRATION | Audit log completeness for critical events | create/send/open/sign/close events captured |
 | P1C-007 | P1 | MANUAL | Runbook drill for failed approval send | operator can diagnose and recover |
 | P1C-008 | P2 | INTEGRATION | Non-critical data mismatch in report metadata | error surfaced without crashing flow |
+| P1C-009 | P0 | INTEGRATION | `NEW_TOKEN` resend supersedes previous token | old token rejected (`410`), new token valid |
+| P1C-010 | P0 | INTEGRATION | Report job retry/backoff | first attempt fails, `next_retry_at` set, retry can succeed |
+| P1C-011 | P1 | INTEGRATION | Correlation ID propagation | response/body correlation IDs present and traceable |
 
 ## Cross-Phase Security and Data Isolation Cases
 

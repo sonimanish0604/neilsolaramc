@@ -13,7 +13,7 @@ In scope:
 - API contracts and state transitions
 - DB migration safety and data integrity
 - Media/signature/report generation flows
-- WhatsApp approval-link lifecycle (Twilio Sandbox in dev)
+- approval-link lifecycle across configured notification channels
 - Post-deploy validation in Cloud Build
 
 Out of scope for now:
@@ -69,24 +69,14 @@ Exit criteria:
 
 ## Phase 1B Strategy
 Focus:
-- approval token workflow, WhatsApp delivery, signed report completion
+- approval token workflow, notification delivery, signed report completion
 
 Required automated coverage:
 - token creation, open, sign, expiry, and single-use semantics
 - TTL enforcement at 72h
-- Twilio integration tests with sandbox-safe path (mock/fake in CI, sandbox in dev integration where feasible)
-- notification email provider smoke test for operational confidence (`/notifications/trysendemail`)
+- provider integration tests with mock/fake in CI and controlled dev validation
 - PDF generation (pre-sign + final signed versions)
 - workorder status transition to `CUSTOMER_SIGNED`/`CLOSED`
-
-Current automation implementation:
-- Unit/service tests: `backend/tests/test_phase1b_services.py`
-- Functional scenario module: `scripts/functional/scenarios/uc_1b_001_approval_token_flow.sh`
-- Functional scenario module: `scripts/functional/scenarios/uc_1b_002_notification_email_smoke.sh`
-- Suite runner support: `scripts/functional/run_functional_suite.sh`
-- Local validator: `scripts/phase1b_local_api_tests.sh`
-- Post-deploy toggle: `RUN_PHASE1B_APPROVAL_SCENARIO=true` with `FUNCTIONAL_APPROVAL_TOKEN=<token>`
-- Post-deploy email smoke toggle: `RUN_PHASE1B_NOTIFICATION_SMOKE=true` with `FUNCTIONAL_PHASE1B_EMAIL_TO=<recipient>`
 
 Exit criteria:
 - deterministic token lifecycle behavior
@@ -98,10 +88,11 @@ Focus:
 - reliability, retries, and operational hardening
 
 Required automated coverage:
-- retry behavior for transient Twilio/report generation failures
+- retry behavior for transient notification/report generation failures
 - duplicate webhook/request protection and idempotency behavior
 - expiry/revocation operational scenarios
 - stronger post-deploy regression suite across critical workflows
+- correlation ID propagation checks across key APIs
 
 Exit criteria:
 - failure handling and recovery paths validated
@@ -110,8 +101,13 @@ Exit criteria:
 ## Quality Gates by Branch
 - PR to `develop`: lint + unit + integration-compose must pass.
 - Push/merge to `develop`: Cloud Build deploy + migration + post-deploy tests must pass.
+  - includes Phase 1C post-deploy suite when `_RUN_PHASE1C_POST_DEPLOY_TESTS=true`
 - PR to `main`: same quality gates as `develop`.
 - Push/merge to `main`: Cloud Build deploy + smoke checks must pass.
+
+Docs-only optimization:
+- If changes are restricted to `docs/**` and root `README.md`, pipeline fast-path skips build/deploy/test steps.
+- Full pipeline can be forced via Cloud Build substitution `_FORCE_FULL_PIPELINE=true`.
 
 ## Reporting
 Primary artifacts:

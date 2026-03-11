@@ -11,6 +11,7 @@ ADMIN_KEY="${POST_DEPLOY_ADMIN_KEY:-dev-bootstrap-key}"
 RUN_STATEFUL_TESTS="${RUN_STATEFUL_POST_DEPLOY_TESTS:-false}"
 RUN_PHASE1B_APPROVAL_SCENARIO="${RUN_PHASE1B_APPROVAL_SCENARIO:-false}"
 RUN_PHASE1B_NOTIFICATION_SMOKE="${RUN_PHASE1B_NOTIFICATION_SMOKE:-false}"
+RUN_PHASE1C_TESTS="${RUN_PHASE1C_POST_DEPLOY_TESTS:-false}"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -58,12 +59,31 @@ fi
 
 bash "${ROOT_DIR}/scripts/functional/run_functional_suite.sh" || true
 
-# Preserve existing behavior: this script writes exit code to a file and exits 0.
-if [[ ! -f "${EXIT_FILE}" ]]; then
-  echo "1" > "${EXIT_FILE}"
+PHASE1C_EXIT_FILE="${REPORT_DIR}/phase1c_post_deploy_exit_code.txt"
+if [[ "${RUN_PHASE1C_TESTS}" == "true" ]]; then
+  export SUMMARY_FILE="${REPORT_DIR}/phase1c_post_deploy_summary.md"
+  export JUNIT_FILE="${REPORT_DIR}/phase1c_post_deploy_junit.xml"
+  export EXIT_FILE="${PHASE1C_EXIT_FILE}"
+  bash "${ROOT_DIR}/scripts/phase1c_post_deploy_tests.sh" || true
 fi
 
-if [[ "$(cat "${EXIT_FILE}")" != "0" ]]; then
+BASE_EXIT_FILE="${REPORT_DIR}/post_deploy_exit_code.txt"
+if [[ ! -f "${BASE_EXIT_FILE}" ]]; then
+  echo "1" > "${BASE_EXIT_FILE}"
+fi
+
+OVERALL_EXIT=0
+if [[ "$(cat "${BASE_EXIT_FILE}")" != "0" ]]; then
+  OVERALL_EXIT=1
+fi
+
+if [[ "${RUN_PHASE1C_TESTS}" == "true" && -f "${PHASE1C_EXIT_FILE}" && "$(cat "${PHASE1C_EXIT_FILE}")" != "0" ]]; then
+  OVERALL_EXIT=1
+fi
+
+echo "${OVERALL_EXIT}" > "${BASE_EXIT_FILE}"
+
+if [[ "${OVERALL_EXIT}" != "0" ]]; then
   echo "Post-deploy API tests reported failures."
 else
   echo "Post-deploy API tests passed."

@@ -17,7 +17,7 @@ rectangle "FastAPI Backend (Cloud Run)" as API
 rectangle "Cloud SQL Postgres" as DB
 rectangle "GCS Media Bucket" as GCSMedia
 rectangle "GCS Reports Bucket" as GCSReports
-rectangle "Twilio WhatsApp Sandbox" as Twilio
+rectangle "Notification Channel (Email/WhatsApp)" as NotifChannel
 
 Owner --> OwnerPortal : signup/login
 OwnerPortal --> API : create organization
@@ -59,9 +59,9 @@ API --> DB : update workorder (SUBMITTED)
 API --> GCSReports : generate and store draft PDF
 API --> DB : report record (is_final=false)
 
-API --> Twilio : send approval link via WhatsApp
-Twilio --> Customer : WhatsApp message with tokenized link
-API --> DB : approval_events (SENT, expires_in=72h)
+API --> NotifChannel : send approval link
+NotifChannel --> Customer : notification with tokenized link
+API --> DB : approval_events (SENT, expires_in=72h, correlation_id)
 
 Customer --> CustomerWeb : open approval link
 CustomerWeb --> API : validate token
@@ -71,8 +71,9 @@ Customer --> CustomerWeb : sign report (single-use token)
 CustomerWeb --> API : submit customer signature PNG
 API --> DB : signatures(CUSTOMER_SUPERVISOR)
 API --> GCSMedia : store customer signature
-API --> GCSReports : regenerate final signed PDF
-API --> DB : report is_final=true
+API --> DB : enqueue final report job
+API --> GCSReports : report job generates final signed PDF
+API --> DB : report_jobs SUCCEEDED, report is_final=true
 API --> DB : workorder CUSTOMER_SIGNED -> CLOSED
 API --> DB : approval_events SIGNED (token consumed)
 
@@ -82,4 +83,3 @@ API --> DB : fetch reports/workorders
 API --> GCSReports : signed URL access for PDF
 
 @enduml
-

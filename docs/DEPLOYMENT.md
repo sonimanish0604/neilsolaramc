@@ -1,66 +1,50 @@
-# Deployment
+# Deployment (Current MVP)
 
 ## Region
-India: asia-south1 (Mumbai)
+- `asia-south1` (Mumbai)
 
-## Single GCP project, multi-env resources
-We deploy 4 environments into one GCP project using strict naming + separate service accounts:
-- dev
-- test
-- staging
-- prod
-
-## Cloud Run continuous deployment
-Use “Continuously deploy from a repository” in Cloud Run.
+## Active Environments (MVP)
+We currently deploy two active environments in one GCP project:
+- `dev` (`develop` branch)
+- `prod` (`main` branch)
 
 Branch mapping:
-- develop → neilsolar-dev-api
-- test → neilsolar-test-api
-- staging → neilsolar-staging-api
-- main → neilsolar-prod-api
+- `develop` -> `neilsolar-dev-api`
+- `main` -> `neilsolar-prod-api`
 
-Build strategy:
-- Dockerfile-based build (recommended)
-- Artifact Registry stores built images
+## Build and Deploy Path
+- Cloud Build builds and pushes container image
+- DB migrations run before service deploy via Cloud Run Job
+- Cloud Run service deploy is executed from `cloudbuild.yaml`
 
-## Per-environment resources (recommended)
+## Per-environment Resources
 Cloud Run:
-- neilsolar-<env>-api
+- `neilsolar-<env>-api`
+
 Cloud SQL:
-- neilsolar-<env>-db (Postgres)
+- env-specific instance/credentials (secrets-backed)
+
 GCS buckets:
-- neilsolar-<env>-media
-- neilsolar-<env>-reports
-Secrets (Secret Manager):
-- <env>/DATABASE_URL
-- <env>/FIREBASE_PROJECT_ID
-- <env>/GCS_MEDIA_BUCKET
-- <env>/GCS_REPORTS_BUCKET
-- <env>/WHATSAPP_PROVIDER_KEY (or equivalent)
-Service Accounts:
-- sa-<env>-api
-- sa-<env>-worker
+- `neilsolar-<env>-media`
+- `neilsolar-<env>-reports`
 
-## Worker Jobs
-Cloud Run Jobs (per env):
-- neilsolar-<env>-worker
-Jobs executed for:
-- report generation
-- WhatsApp sending
-- retention cleanup
+Secret Manager:
+- `DATABASE_URL`
+- `DATABASE_ADMIN_URL`
+- provider and runtime secrets by environment
 
-Scheduling:
-- retention cleanup nightly
-- report generation on-demand (triggered by API) or async queue
+Service accounts:
+- runtime API/service account per environment
+- migration job/service account per environment
 
-## Terraform layout
-infra/terraform/
-  modules/
-  envs/
-    dev/
-    test/
-    staging/
-    prod/
+## Worker/Async Behavior
+- Report generation through async report-job APIs
+- Approval delivery via channel abstraction (email/whatsapp)
+- Retention cleanup via scheduled maintenance jobs
 
-One state per env.
-Migration to separate GCP projects later is achieved primarily by changing project_id in each env.
+## Post-deploy Validation
+- `develop`: stateful post-deploy API checks (including Phase 1C suite when enabled)
+- `main`: smoke-only post-deploy checks (current MVP release policy)
+
+## Future Expansion (Deferred)
+`test` and `staging` can be introduced later if release governance needs additional promotion stages.

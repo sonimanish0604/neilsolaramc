@@ -13,15 +13,45 @@
 4) Confirm DB is reachable
 
 ## Incident: Report generation fails
-1) Check worker job logs (HTML->PDF pipeline)
-2) Confirm GCS write permissions for reports bucket
-3) Confirm templates/assets exist
-4) Retry generate-report endpoint
+1) Check report job state via API: `GET /workorders/report-jobs/{job_id}`
+2) Check report job fields: `status`, `attempt_count`, `next_retry_at`, `last_error`
+3) Check worker/service logs using `X-Correlation-ID`
+4) Confirm GCS write permissions for reports bucket
+5) Run/retry report job:
+   - `POST /workorders/report-jobs/{job_id}/run`
+   - `POST /workorders/report-jobs/{job_id}/retry`
+6) If `DEAD`, perform operator review before manual retry.
 
-## Incident: WhatsApp sending fails
+## Incident: Approval delivery fails
+1) Check latest approval event for workorder:
+   - `status`, `attempt_count`, `next_retry_at`, `last_error`, `channel`, `recipient`
+2) Classify failure:
+   - retryable (`DELIVERY_FAILED`) should be retried by schedule/operator
+   - permanent (`DELIVERY_PERMANENT_FAILED`) requires configuration/contact fix first
+3) Trigger manual resend:
+   - `POST /workorders/{workorder_id}/resend-approval` with `EXTEND` or `NEW_TOKEN`
+4) For near-expiry reminders, run:
+   - `POST /workorders/approval-reminders/run`
+
+## Incident: Token supersession/expiry confusion
+1) Identify active approval event and confirm token status.
+2) If old token must be invalidated, resend with `NEW_TOKEN`.
+3) Verify old token returns `410` and new token opens successfully.
+4) Confirm `SUPERSEDED` status was written for previous token.
+
+## Incident: Correlation/trace troubleshooting
+1) Capture `X-Correlation-ID` from client response.
+2) Use the same value to search API logs and event/job records.
+3) Correlate path:
+   - workorder action -> approval event/report job -> delivery/report result
+
+## Incident: Legacy guidance (kept for transition)
+Previous “retry generate-report endpoint” guidance is replaced by report-job APIs above.
+
+## Incident: Channel provider send fails (WhatsApp/Email)
 1) Check provider credentials secret
 2) Check provider API responses (rate limit, template errors)
-3) Retry job (manual rerun) for workorder
+3) Retry/resend only after classifying retryable vs permanent
 
 ## Incident: Approval link issues
 1) Confirm token not expired
