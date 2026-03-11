@@ -13,6 +13,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
+dump_compose_diagnostics() {
+  echo "[integration] Docker Compose status"
+  docker compose --env-file "${ENV_FILE}" ps || true
+  echo "[integration] API logs"
+  docker compose --env-file "${ENV_FILE}" logs api --tail=200 || true
+  echo "[integration] Postgres logs"
+  docker compose --env-file "${ENV_FILE}" logs postgres --tail=100 || true
+  echo "[integration] Notification orchestrator logs"
+  docker compose --env-file "${ENV_FILE}" logs notification-orchestrator --tail=100 || true
+}
+
 echo "[integration] Starting local stack with Docker Compose"
 docker compose --env-file "${ENV_FILE}" up -d --build
 
@@ -29,6 +40,7 @@ code="$(curl -s -o /tmp/health.out -w "%{http_code}" "${API_URL}/health" || true
 if [[ "${code}" != "200" ]]; then
   echo "[integration] health check failed with HTTP ${code}"
   cat /tmp/health.out || true
+  dump_compose_diagnostics
   exit 1
 fi
 
