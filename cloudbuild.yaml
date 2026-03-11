@@ -1,19 +1,35 @@
 steps:
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'classify-change-set'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        bash scripts/cloudbuild/classify_changes.sh
+
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
+    entrypoint: 'bash'
     args:
-      - 'build'
-      - '-t'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
-      - '-f'
-      - 'backend/Dockerfile'
-      - 'backend'
+      - '-c'
+      - |
+        set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh build-image
+        docker build \
+          -t "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}" \
+          -f backend/Dockerfile \
+          backend
 
   - name: 'gcr.io/cloud-builders/docker'
     id: 'push-image'
+    entrypoint: 'bash'
     args:
-      - 'push'
-      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
+      - '-c'
+      - |
+        set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh push-image
+        docker push "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}"
 
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'run-db-migrations'
@@ -22,6 +38,7 @@ steps:
       - '-c'
       - |
         set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh run-db-migrations
         IMAGE="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}"
         gcloud run jobs deploy ${_MIGRATION_JOB} \
           --image="$${IMAGE}" \
@@ -49,8 +66,8 @@ steps:
     args:
       - '-c'
       - |
-        set -e
-        # Deploy to Cloud Run (managed)
+        set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh deploy-cloud-run
         gcloud run deploy ${_SERVICE} \
           --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA} \
           --region=${_REGION} \
@@ -68,6 +85,7 @@ steps:
       - '-c'
       - |
         set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh smoke-check-health
         SERVICE_URL="$(gcloud run services describe ${_SERVICE} \
           --region=${_REGION} \
           --project=${PROJECT_ID} \
@@ -98,6 +116,7 @@ steps:
       - '-c'
       - |
         set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh post-deploy-api-tests
         SERVICE_URL="$(gcloud run services describe ${_SERVICE} \
           --region=${_REGION} \
           --project=${PROJECT_ID} \
@@ -107,6 +126,8 @@ steps:
         export BUILD_ID="${BUILD_ID}"
         export POST_DEPLOY_ADMIN_KEY="${_POST_DEPLOY_ADMIN_KEY}"
         export RUN_STATEFUL_POST_DEPLOY_TESTS="${_RUN_STATEFUL_POST_DEPLOY_TESTS}"
+        export RUN_PHASE1C_POST_DEPLOY_TESTS="${_RUN_PHASE1C_POST_DEPLOY_TESTS}"
+        export FUNCTIONAL_BEARER_TOKEN="${_FUNCTIONAL_BEARER_TOKEN}"
         bash scripts/post_deploy_cloud_tests.sh
 
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -116,11 +137,17 @@ steps:
       - '-c'
       - |
         set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh upload-post-deploy-reports
         REPORT_BRANCH="$${BRANCH_NAME:-manual}"
         DEST="gs://${_REPORTS_BUCKET}/$${REPORT_BRANCH}/${_SERVICE}/${BUILD_ID}"
         gsutil -m cp /workspace/reports/post_deploy_summary.md "$${DEST}/"
         gsutil -m cp /workspace/reports/post_deploy_junit.xml "$${DEST}/"
         gsutil -m cp /workspace/reports/post_deploy_exit_code.txt "$${DEST}/"
+        if [ -f /workspace/reports/phase1c_post_deploy_summary.md ]; then
+          gsutil -m cp /workspace/reports/phase1c_post_deploy_summary.md "$${DEST}/"
+          gsutil -m cp /workspace/reports/phase1c_post_deploy_junit.xml "$${DEST}/"
+          gsutil -m cp /workspace/reports/phase1c_post_deploy_exit_code.txt "$${DEST}/"
+        fi
         echo "Post-deploy reports uploaded:"
         echo "$${DEST}/post_deploy_summary.md"
         echo "$${DEST}/post_deploy_junit.xml"
@@ -132,6 +159,7 @@ steps:
       - '-c'
       - |
         set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh enforce-post-deploy-tests
         EXIT_CODE="$$(cat /workspace/reports/post_deploy_exit_code.txt)"
         if [ "$${EXIT_CODE}" != "0" ]; then
           echo "Post-deploy API tests reported failures."
@@ -145,7 +173,8 @@ steps:
     args:
       - '-c'
       - |
-        set -e
+        set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh run-lint-and-tests
         cd backend
         export PYTHONPATH="$$(pwd)"
         python -m pip install --upgrade pip
@@ -162,9 +191,6 @@ steps:
           echo 'No tests found; skipping'
         fi
 
-images:
-  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_AR_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
-
 substitutions:
   _REGION: 'asia-south1'
   _AR_REPO: 'neilsolar-containers'
@@ -178,5 +204,9 @@ substitutions:
   _REPORTS_BUCKET: 'neilsolar-ci-reports'
   _POST_DEPLOY_ADMIN_KEY: 'dev-bootstrap-key'
   _RUN_STATEFUL_POST_DEPLOY_TESTS: 'true'
+  _RUN_PHASE1C_POST_DEPLOY_TESTS: 'true'
+  _FUNCTIONAL_BEARER_TOKEN: ''
+  _DOCS_ONLY_OVERRIDE: 'auto'
+  _FORCE_FULL_PIPELINE: 'false'
 options:
   logging: CLOUD_LOGGING_ONLY
