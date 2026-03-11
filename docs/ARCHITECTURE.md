@@ -6,7 +6,7 @@ NEIL Solar is a multi-tenant SaaS platform for Solar EPC companies in India to r
 Core flow:
 1) Supervisor schedules AMC visit (WorkOrder) and assigns Technician
 2) Technician completes checklist + captures photos (max 20) + signs
-3) Backend generates PDF report and sends WhatsApp approval link to customer site supervisor
+3) Backend generates PDF report and sends approval link to customer site supervisor
 4) Customer site supervisor signs via mobile web link
 5) Final signed PDF is stored and visible to Owner/Supervisor/Customer portal
 
@@ -17,16 +17,14 @@ Core flow:
 - API: FastAPI on Cloud Run
 - DB: Cloud SQL Postgres (managed)
 - Media/PDF: Google Cloud Storage (GCS)
-- Async: Cloud Run Jobs (report generation, WhatsApp send, retention cleanup)
+- Async: Cloud Run Jobs and stateless worker paths (report jobs, notification jobs, retention cleanup)
 - IaC: Terraform
 - Region: asia-south1 (Mumbai)
 
-## Environments (single GCP project, multi-env resources)
+## Environments (single GCP project, MVP branch strategy)
 Branch → Environment → Cloud Run service
-- develop → dev → NEILsolar-dev-api
-- test → test → NEILsolar-test-api
-- staging → staging → NEILsolar-staging-api
-- main → prod → NEILsolar-prod-api
+- develop → dev → neilsolar-dev-api
+- main → prod → neilsolar-prod-api
 
 Each env has its own:
 - Cloud Run service
@@ -52,7 +50,7 @@ flowchart LR
   subgraph GCP
     subgraph CloudRun
       API[FastAPI API Service]
-      JOB[Worker Job\n(PDF/WhatsApp/Retention)]
+      JOB[Worker Job\n(PDF/Notification/Retention)]
     end
 
     subgraph DB

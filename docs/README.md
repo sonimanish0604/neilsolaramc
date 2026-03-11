@@ -1,8 +1,8 @@
-# NEIL Solar AMC SaaS (Mobile + Web + WhatsApp Approval)
+# NEIL Solar AMC SaaS (Mobile + Web + Supervisor Approval)
 
 White-label Solar AMC checklist platform for Indian Solar EPCs.
 Technicians complete AMC visits on mobile (offline-lite), capture photos, sign digitally, generate PDF reports,
-and send a WhatsApp approval link to the customer site supervisor for final signature.
+and send an approval link to the customer site supervisor for final signature.
 
 ## Current Product Scope
 - Frontend: FlutterFlow apps (Owner/Manager/Supervisor/Technician flows) and customer mobile web signing flow
@@ -27,6 +27,7 @@ Rules:
 - Post-deploy reports upload to `gs://neilsolar-ci-reports/...`
 - `develop` runs full stateful post-deploy API tests
 - `main` runs smoke-only post-deploy checks (`_RUN_STATEFUL_POST_DEPLOY_TESTS=false`)
+- docs-only changes (`docs/**` and root `README.md`) use fast-path CI skip for build/deploy/test steps
 
 ## Phase Roadmap
 
@@ -36,7 +37,7 @@ Secure control-plane foundation:
 - Tenant/user/role model with tenant isolation
 - Baseline audit logging and deployment automation
 
-### Phase 1A (In progress next)
+### Phase 1A (Delivered)
 Core application-plane APIs and technician submission path:
 - Customer and Site CRUD
 - WorkOrder create/assign/list/status transitions
@@ -44,21 +45,22 @@ Core application-plane APIs and technician submission path:
 - Technician signature ingestion (`PNG` contract)
 - Tests for happy/rainy paths in CI and post-deploy
 
-### Phase 1B
+### Phase 1B (Delivered)
 Approval and report completion path:
 - PDF generation (tech-signed and customer-signed variants)
-- WhatsApp approval link delivery using Twilio Sandbox
+- Approval-link delivery via notification channel abstraction (Mailgun email operational for MVP)
 - Tokenized approval flow with:
   - TTL = `72h`
   - single-use token after successful customer signature
 - Final signed PDF regeneration and WorkOrder closure
 - Branded/logo report layout
 
-### Phase 1C
+### Phase 1C (In progress)
 Stability and hardening:
 - Retry and failure handling for async/report/messaging steps
 - Approval token expiry/revocation and operational runbook coverage
 - Stronger stateful post-deploy test coverage and regression gates
+- Correlation IDs across critical flows (`workorder -> approval_event -> report_job`)
 
 ## Checklist Extensibility Foundation (Future-proofing)
 To support future verticals (solar, elevators, telecom towers, generators) without schema rewrites:
@@ -99,11 +101,16 @@ WorkOrder lifecycle:
 
 ## Canonical Docs
 - `docs/ARCHITECTURE.md`
+- `docs/API_CONTRACT.md`
+- `docs/DATA_MODEL.md`
+- `docs/RUNBOOK.md`
 - `docs/PRODUCT_VALUE_PROPOSITION.md`
 - `docs/automate_strategy.md`
 - `docs/AI_WORKFLOW_RULES.md`
 - `docs/PHASE1A_LOCAL_TESTING.md`
 - `docs/PHASE1_USE_CASE_TESTS.md`
+- `docs/PHASE1B_CLOSURE_NOTE.md`
+- `docs/PHASE1C_ACCOMPLISHMENTS_AND_NEXT_STEPS.md`
 
 ## Local Development
 - Python 3.11+

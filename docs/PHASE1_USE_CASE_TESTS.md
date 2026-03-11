@@ -73,7 +73,7 @@ This document adds scenario-based tests on top of:
   - `backend/tests/test_phase1a_validations.py`
   - `TEST_CASES_PHASE1`: `P1A-006`, `P1A-008`, `P1A-010`, `P1A-011`
 
-## Phase 1B Scenarios (Planned)
+## Phase 1B Scenarios (Delivered Baseline)
 
 ### UC-1B-001 Customer Approval Link Success
 - Goal: customer signs through tokenized link and report finalizes.
@@ -103,17 +103,21 @@ This document adds scenario-based tests on top of:
 - Coverage Mapping:
   - `TEST_CASES_PHASE1`: `P1B-005`, `P1B-006`
 
-## Phase 1C Scenarios (Planned)
+## Phase 1C Scenarios (Implemented)
 
 ### UC-1C-001 Retry and Recovery Path
 - Goal: transient delivery/report failures recover cleanly.
 - Coverage Mapping:
-  - `TEST_CASES_PHASE1`: `P1C-001`, `P1C-002`, `P1C-007`
+  - `scripts/phase1c_local_api_tests.sh`
+  - `scripts/phase1c_post_deploy_tests.sh`
+  - `TEST_CASES_PHASE1`: `P1C-001`, `P1C-002`, `P1C-007`, `P1C-010`
 
 ### UC-1C-002 Auditability and Safety
 - Goal: critical lifecycle events are traceable and isolated by tenant.
 - Coverage Mapping:
-  - `TEST_CASES_PHASE1`: `P1C-006`, `SEC-001` ... `SEC-005`
+  - `scripts/phase1c_local_api_tests.sh`
+  - `scripts/phase1c_post_deploy_tests.sh`
+  - `TEST_CASES_PHASE1`: `P1C-006`, `P1C-009`, `P1C-011`, `SEC-001` ... `SEC-005`
 
 ## Execution Guidance
 - Local functional run:
@@ -123,6 +127,7 @@ This document adds scenario-based tests on top of:
 - Post-deploy functional checks:
   - `scripts/post_deploy_cloud_tests.sh` (always runs preflight checks)
   - stateful UC scenarios run when `RUN_STATEFUL_POST_DEPLOY_TESTS=true`
+  - phase1c stateful checks run when `RUN_PHASE1C_POST_DEPLOY_TESTS=true`
 
 ### Modular Automation Layout
 - `scripts/functional/lib/common.sh`
