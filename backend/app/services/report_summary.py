@@ -7,7 +7,6 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models.site import SiteInverter
 from app.db.models.workorder import InverterReading, Media, Report, WorkOrder
 from app.services.inverter_readings import list_site_inverters, to_float
 
