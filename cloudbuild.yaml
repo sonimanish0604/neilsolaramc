@@ -110,6 +110,27 @@ steps:
         exit 1
 
   - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'resolve-functional-bearer-token'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        bash scripts/cloudbuild/skip_if_docs_only.sh resolve-functional-bearer-token
+        export RUN_STATEFUL_POST_DEPLOY_TESTS="${_RUN_STATEFUL_POST_DEPLOY_TESTS}"
+        export RUN_PHASE1B_APPROVAL_SCENARIO="${_RUN_PHASE1B_APPROVAL_SCENARIO}"
+        export RUN_PHASE1B_NOTIFICATION_SMOKE="${_RUN_PHASE1B_NOTIFICATION_SMOKE}"
+        export RUN_PHASE1C_POST_DEPLOY_TESTS="${_RUN_PHASE1C_POST_DEPLOY_TESTS}"
+        export RUN_PHASE1D_POST_DEPLOY_TESTS="${_RUN_PHASE1D_POST_DEPLOY_TESTS}"
+        export RUN_PHASE1E_POST_DEPLOY_TESTS="${_RUN_PHASE1E_POST_DEPLOY_TESTS}"
+        export FUNCTIONAL_BEARER_TOKEN="${_FUNCTIONAL_BEARER_TOKEN}"
+        export FUNCTIONAL_FIREBASE_API_KEY_SECRET="${_FUNCTIONAL_FIREBASE_API_KEY_SECRET}"
+        export FUNCTIONAL_TEST_EMAIL_SECRET="${_FUNCTIONAL_TEST_EMAIL_SECRET}"
+        export FUNCTIONAL_TEST_PASSWORD_SECRET="${_FUNCTIONAL_TEST_PASSWORD_SECRET}"
+        export TOKEN_FILE=/workspace/.functional_bearer_token
+        bash scripts/cloudbuild/resolve_functional_bearer_token.sh
+
+  - name: 'gcr.io/cloud-builders/gcloud'
     id: 'post-deploy-api-tests'
     entrypoint: 'bash'
     args:
@@ -140,7 +161,11 @@ steps:
         export RUN_PHASE1C_POST_DEPLOY_TESTS="${_RUN_PHASE1C_POST_DEPLOY_TESTS}"
         export RUN_PHASE1D_POST_DEPLOY_TESTS="${_RUN_PHASE1D_POST_DEPLOY_TESTS}"
         export RUN_PHASE1E_POST_DEPLOY_TESTS="${_RUN_PHASE1E_POST_DEPLOY_TESTS}"
-        export FUNCTIONAL_BEARER_TOKEN="${_FUNCTIONAL_BEARER_TOKEN}"
+        if [ -f /workspace/.functional_bearer_token ]; then
+          export FUNCTIONAL_BEARER_TOKEN="$$(cat /workspace/.functional_bearer_token)"
+        else
+          export FUNCTIONAL_BEARER_TOKEN="${_FUNCTIONAL_BEARER_TOKEN}"
+        fi
         export FUNCTIONAL_ASSIGNED_TECH_USER_ID="${_FUNCTIONAL_ASSIGNED_TECH_USER_ID}"
         bash scripts/post_deploy_cloud_tests.sh
 
@@ -246,6 +271,9 @@ substitutions:
   _RUN_PHASE1D_POST_DEPLOY_TESTS: 'false'
   _RUN_PHASE1E_POST_DEPLOY_TESTS: 'false'
   _FUNCTIONAL_BEARER_TOKEN: ''
+  _FUNCTIONAL_FIREBASE_API_KEY_SECRET: ''
+  _FUNCTIONAL_TEST_EMAIL_SECRET: ''
+  _FUNCTIONAL_TEST_PASSWORD_SECRET: ''
   _FUNCTIONAL_ASSIGNED_TECH_USER_ID: '182fdf9d-4a9f-4f86-b0f3-454bc32580c1'
   _DOCS_ONLY_OVERRIDE: 'auto'
   _FORCE_FULL_PIPELINE: 'false'
