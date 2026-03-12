@@ -86,6 +86,7 @@ export FUNCTIONAL_ASSIGNED_TECH_USER_ID
 export SUMMARY_FILE
 export JUNIT_FILE
 export EXIT_FILE
+export SUITE_TITLE="Phase 1E Local API Test Summary"
 
 bash "${ROOT_DIR}/scripts/phase1e_post_deploy_tests.sh"
 

@@ -13,6 +13,7 @@ FUNCTIONAL_ASSIGNED_TECH_USER_ID="${FUNCTIONAL_ASSIGNED_TECH_USER_ID:-}"
 SUMMARY_FILE="${SUMMARY_FILE:-${REPORT_DIR}/phase1e_post_deploy_summary.md}"
 JUNIT_FILE="${JUNIT_FILE:-${REPORT_DIR}/phase1e_post_deploy_junit.xml}"
 EXIT_FILE="${EXIT_FILE:-${REPORT_DIR}/phase1e_post_deploy_exit_code.txt}"
+SUITE_TITLE="${SUITE_TITLE:-Phase 1E Post-Deploy API Summary}"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -67,7 +68,7 @@ api_call() {
 if [[ -z "${FUNCTIONAL_BEARER_TOKEN}" ]]; then
   run_skip "P1E auth token present" "FUNCTIONAL_BEARER_TOKEN not provided"
   write_reports \
-    "Phase 1E Post-Deploy API Summary" \
+    "${SUITE_TITLE}" \
     "${SERVICE_URL}" \
     "${REPORT_BRANCH:-manual}" \
     "${BUILD_ID:-unknown}" \
@@ -80,7 +81,7 @@ fi
 if [[ -z "${FUNCTIONAL_ASSIGNED_TECH_USER_ID}" ]]; then
   run_skip "P1E assigned tech user id present" "FUNCTIONAL_ASSIGNED_TECH_USER_ID not provided"
   write_reports \
-    "Phase 1E Post-Deploy API Summary" \
+    "${SUITE_TITLE}" \
     "${SERVICE_URL}" \
     "${REPORT_BRANCH:-manual}" \
     "${BUILD_ID:-unknown}" \
@@ -177,7 +178,7 @@ verified_distance="$(json_value distance_to_site_meters "${cap_verified_out}")"
 run_test "P1E verified distance present" "YES" "$([[ -n "${verified_distance}" ]] && echo YES || echo NO)"
 
 write_reports \
-  "Phase 1E Post-Deploy API Summary" \
+  "${SUITE_TITLE}" \
   "${SERVICE_URL}" \
   "${REPORT_BRANCH:-manual}" \
   "${BUILD_ID:-unknown}" \
