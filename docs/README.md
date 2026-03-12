@@ -55,12 +55,26 @@ Approval and report completion path:
 - Final signed PDF regeneration and WorkOrder closure
 - Branded/logo report layout
 
-### Phase 1C (In progress)
+### Phase 1C (Delivered)
 Stability and hardening:
 - Retry and failure handling for async/report/messaging steps
 - Approval token expiry/revocation and operational runbook coverage
 - Stronger stateful post-deploy test coverage and regression gates
 - Correlation IDs across critical flows (`workorder -> approval_event -> report_job`)
+
+### Phase 1D (Delivered)
+Inverter reading capture and generation foundation:
+- Site inverter inventory APIs
+- Workorder inverter reading capture with proof photo metadata
+- Baseline/delta/anomaly generation computation
+- Generation summary via `GET /workorders/{workorder_id}/report-data`
+- Local + post-deploy + modular functional automation
+
+### Phase 1E (Planned)
+Reporting enrichment layer:
+- Savings presentation (tariff-driven)
+- Plant performance scoring
+- Visual report sections/charts
 
 ## Checklist Extensibility Foundation (Future-proofing)
 To support future verticals (solar, elevators, telecom towers, generators) without schema rewrites:
@@ -111,6 +125,8 @@ WorkOrder lifecycle:
 - `docs/PHASE1_USE_CASE_TESTS.md`
 - `docs/PHASE1B_CLOSURE_NOTE.md`
 - `docs/PHASE1C_ACCOMPLISHMENTS_AND_NEXT_STEPS.md`
+- `docs/phase1d/README.md`
+- `docs/phase1d/Phase1d_PowerGenOverview.md`
 
 ## Local Development
 - Python 3.11+

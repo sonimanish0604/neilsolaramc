@@ -1,4 +1,4 @@
-from sqlalchemy import Numeric, String, Text
+from sqlalchemy import Boolean, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,3 +26,17 @@ class Site(TenantScopedMixin, Base):
     site_supervisor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     site_supervisor_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     site_supervisor_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+
+class SiteInverter(TenantScopedMixin, Base):
+    __tablename__ = "site_inverters"
+
+    site_id: Mapped[PGUUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
+    inverter_code: Mapped[str] = mapped_column(String(100), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    capacity_kw: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    manufacturer: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    model: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    serial_number: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    commissioned_on: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

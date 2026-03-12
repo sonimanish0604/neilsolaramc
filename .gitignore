@@ -20,6 +20,8 @@ docs/screencapture-*.png
 /.idea/
 /.vscode/
 secrets/*.json
+reports/
+solaramcapp*.png
 backend/.venv/
 backend/.env
 backend/.env.local

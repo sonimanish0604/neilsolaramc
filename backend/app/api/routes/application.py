@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.core.security import verify_firebase_jwt
 from app.core.tenancy import ctx_roles, ctx_tenant_id, ctx_user_id, require_roles
-from app.db.models.site import Customer, Site
+from app.db.models.site import Customer, Site, SiteInverter
 from app.db.models.user import User, UserRole
 from app.db.session import get_admin_db, get_app_db
 from app.schemas.application import (
@@ -15,6 +15,9 @@ from app.schemas.application import (
     CustomerOut,
     CustomerUpdate,
     SiteCreate,
+    SiteInverterCreate,
+    SiteInverterOut,
+    SiteInverterUpdate,
     SiteOut,
     SiteUpdate,
 )
@@ -39,6 +42,35 @@ def _ensure_context(request: Request):
     ctx_user_id.set(user_id)
     ctx_roles.set(roles)
     return tenant_id, user_id
+
+
+def _site_out(site: Site) -> SiteOut:
+    return SiteOut(
+        id=str(site.id),
+        customer_id=str(site.customer_id),
+        site_name=site.site_name,
+        address=site.address,
+        capacity_kw=float(site.capacity_kw) if site.capacity_kw is not None else None,
+        status=site.status,
+        site_supervisor_name=site.site_supervisor_name,
+        site_supervisor_email=site.site_supervisor_email,
+        site_supervisor_phone=site.site_supervisor_phone,
+    )
+
+
+def _site_inverter_out(inverter: SiteInverter) -> SiteInverterOut:
+    return SiteInverterOut(
+        id=str(inverter.id),
+        site_id=str(inverter.site_id),
+        inverter_code=inverter.inverter_code,
+        display_name=inverter.display_name,
+        capacity_kw=float(inverter.capacity_kw) if inverter.capacity_kw is not None else None,
+        manufacturer=inverter.manufacturer,
+        model=inverter.model,
+        serial_number=inverter.serial_number,
+        commissioned_on=inverter.commissioned_on,
+        is_active=inverter.is_active,
+    )
 
 
 @router.post("/customers", response_model=CustomerOut)
@@ -134,17 +166,7 @@ def create_site(payload: SiteCreate, request: Request):
         )
         db.add(site)
         db.flush()
-        return SiteOut(
-            id=str(site.id),
-            customer_id=str(site.customer_id),
-            site_name=site.site_name,
-            address=site.address,
-            capacity_kw=float(site.capacity_kw) if site.capacity_kw is not None else None,
-            status=site.status,
-            site_supervisor_name=site.site_supervisor_name,
-            site_supervisor_email=site.site_supervisor_email,
-            site_supervisor_phone=site.site_supervisor_phone,
-        )
+        return _site_out(site)
 
 
 @router.get("/sites", response_model=list[SiteOut])
@@ -157,20 +179,7 @@ def list_sites(request: Request, customer_id: str | None = None):
         if customer_id:
             stmt = stmt.where(Site.customer_id == UUID(customer_id))
         rows = db.execute(stmt.order_by(Site.created_at.desc())).scalars().all()
-        return [
-            SiteOut(
-                id=str(s.id),
-                customer_id=str(s.customer_id),
-                site_name=s.site_name,
-                address=s.address,
-                capacity_kw=float(s.capacity_kw) if s.capacity_kw is not None else None,
-                status=s.status,
-                site_supervisor_name=s.site_supervisor_name,
-                site_supervisor_email=s.site_supervisor_email,
-                site_supervisor_phone=s.site_supervisor_phone,
-            )
-            for s in rows
-        ]
+        return [_site_out(s) for s in rows]
 
 
 @router.patch("/sites/{site_id}", response_model=SiteOut)
@@ -208,14 +217,101 @@ def update_site(site_id: str, payload: SiteUpdate, request: Request):
                 detail="Either site_supervisor_phone or site_supervisor_email is required",
             )
 
-        return SiteOut(
-            id=str(site.id),
-            customer_id=str(site.customer_id),
-            site_name=site.site_name,
-            address=site.address,
-            capacity_kw=float(site.capacity_kw) if site.capacity_kw is not None else None,
-            status=site.status,
-            site_supervisor_name=site.site_supervisor_name,
-            site_supervisor_email=site.site_supervisor_email,
-            site_supervisor_phone=site.site_supervisor_phone,
+        return _site_out(site)
+
+
+@router.post("/sites/{site_id}/inverters", response_model=SiteInverterOut)
+def create_site_inverter(site_id: str, payload: SiteInverterCreate, request: Request):
+    tenant_id, user_id = _ensure_context(request)
+    require_roles("OWNER", "SUPERVISOR")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        site = db.execute(select(Site).where(Site.id == UUID(site_id))).scalar_one_or_none()
+        if not site:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found")
+
+        existing = db.execute(
+            select(SiteInverter).where(
+                SiteInverter.site_id == site.id,
+                SiteInverter.inverter_code == payload.inverter_code,
+            )
+        ).scalar_one_or_none()
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inverter code already exists for site")
+
+        inverter = SiteInverter(
+            tenant_id=tenant_id,
+            site_id=site.id,
+            inverter_code=payload.inverter_code,
+            display_name=payload.display_name,
+            capacity_kw=payload.capacity_kw,
+            manufacturer=payload.manufacturer,
+            model=payload.model,
+            serial_number=payload.serial_number,
+            commissioned_on=payload.commissioned_on,
+            is_active=payload.is_active,
         )
+        db.add(inverter)
+        db.flush()
+        return _site_inverter_out(inverter)
+
+
+@router.get("/sites/{site_id}/inverters", response_model=list[SiteInverterOut])
+def list_site_inverters(site_id: str, request: Request, active_only: bool = False):
+    tenant_id, user_id = _ensure_context(request)
+    require_roles("OWNER", "SUPERVISOR", "TECH", "CUSTOMER")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        site = db.execute(select(Site).where(Site.id == UUID(site_id))).scalar_one_or_none()
+        if not site:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site not found")
+
+        stmt = select(SiteInverter).where(SiteInverter.site_id == site.id)
+        if active_only:
+            stmt = stmt.where(SiteInverter.is_active.is_(True))
+        rows = db.execute(stmt.order_by(SiteInverter.display_name.asc())).scalars().all()
+        return [_site_inverter_out(row) for row in rows]
+
+
+@router.patch("/sites/{site_id}/inverters/{inverter_id}", response_model=SiteInverterOut)
+def update_site_inverter(site_id: str, inverter_id: str, payload: SiteInverterUpdate, request: Request):
+    tenant_id, user_id = _ensure_context(request)
+    require_roles("OWNER", "SUPERVISOR")
+
+    with get_app_db(tenant_id=tenant_id, user_id=user_id) as db:
+        inverter = db.execute(
+            select(SiteInverter).where(
+                SiteInverter.site_id == UUID(site_id),
+                SiteInverter.id == UUID(inverter_id),
+            )
+        ).scalar_one_or_none()
+        if not inverter:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Site inverter not found")
+
+        if payload.inverter_code is not None and payload.inverter_code != inverter.inverter_code:
+            existing = db.execute(
+                select(SiteInverter).where(
+                    SiteInverter.site_id == inverter.site_id,
+                    SiteInverter.inverter_code == payload.inverter_code,
+                    SiteInverter.id != inverter.id,
+                )
+            ).scalar_one_or_none()
+            if existing:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inverter code already exists for site")
+            inverter.inverter_code = payload.inverter_code
+        if payload.display_name is not None:
+            inverter.display_name = payload.display_name
+        if payload.capacity_kw is not None:
+            inverter.capacity_kw = payload.capacity_kw
+        if payload.manufacturer is not None:
+            inverter.manufacturer = payload.manufacturer
+        if payload.model is not None:
+            inverter.model = payload.model
+        if payload.serial_number is not None:
+            inverter.serial_number = payload.serial_number
+        if payload.commissioned_on is not None:
+            inverter.commissioned_on = payload.commissioned_on
+        if payload.is_active is not None:
+            inverter.is_active = payload.is_active
+
+        return _site_inverter_out(inverter)

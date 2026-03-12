@@ -66,6 +66,16 @@ def test_workorder_submit_rejects_non_png_tech_signature():
         WorkOrderSubmit(**payload)
 
 
+def test_workorder_submit_rejects_duplicate_inverter_ids():
+    payload = _valid_submit_payload()
+    payload["inverter_readings"] = [
+        {"inverter_id": "11111111-1111-1111-1111-111111111111", "total_kwh": 100.0},
+        {"inverter_id": "11111111-1111-1111-1111-111111111111", "total_kwh": 110.0},
+    ]
+    with pytest.raises(ValidationError):
+        WorkOrderSubmit(**payload)
+
+
 def test_customer_sign_rejects_non_png_signature():
     with pytest.raises(ValidationError):
         CustomerSignIn(
@@ -80,4 +90,3 @@ def test_workorder_transition_rules():
     assert _can_transition("CUSTOMER_SIGNED", "CLOSED")
     assert not _can_transition("SCHEDULED", "CLOSED")
     assert not _can_transition("IN_PROGRESS", "CLOSED")
-

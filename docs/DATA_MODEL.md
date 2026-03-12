@@ -32,6 +32,13 @@ All tenant-scoped tables include:
 - `site_supervisor_email` (nullable)
 - rule: at least one contact channel (phone/email) must exist
 
+### site_inverters
+- `site_id`, `inverter_code`, `display_name`
+- `capacity_kw` (nullable)
+- `manufacturer`, `model`, `serial_number` (nullable)
+- `commissioned_on` (nullable)
+- `is_active`
+
 ### checklist_templates
 - `title`, `version`, `is_active`
 
@@ -52,9 +59,14 @@ All tenant-scoped tables include:
 
 ### inverter_readings
 - `workorder_id`, `inverter_id`, `power_kw`, `day_kwh`, `total_kwh`
+- `current_reading_kwh`, `previous_reading_kwh`, `generation_delta_kwh`
+- `is_baseline`, `is_anomaly`, `anomaly_reason`
+- `operational_status`, `remarks`, `captured_at`
+- when site inventory is configured, `inverter_id` refers to `site_inverters.id`
 
 ### media
 - `workorder_id`, `item_key`, `media_type`, `gcs_object_path`, `content_type`, `size_bytes`
+- `inverter_reading_id` (nullable) for proof-photo linkage to captured inverter readings
 
 ### signatures
 - `workorder_id`, `signer_role` (`TECH|CUSTOMER_SUPERVISOR`)
@@ -65,6 +77,8 @@ All tenant-scoped tables include:
 - `workorder_id`, `report_version`
 - `pdf_gcs_object_path`, `pdf_sha256`
 - `pass_count`, `fail_count`, `generated_at`, `is_final`
+- `generation_total_kwh` (nullable)
+- `generation_snapshot_json` (nullable historical snapshot for report rendering)
 
 ### report_jobs
 - `workorder_id`

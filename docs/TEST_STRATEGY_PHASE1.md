@@ -1,10 +1,11 @@
-# Phase 1 Test Strategy (1A, 1B, 1C)
+# Phase 1 Test Strategy (1A, 1B, 1C, 1D)
 
 ## Purpose
 Define a practical, CI/CD-aligned testing strategy for Phase 1 delivery milestones:
 - Phase 1A: core application-plane workflows
 - Phase 1B: customer approval + report completion
 - Phase 1C: reliability hardening
+- Phase 1D: inverter capture + generation foundation
 
 This strategy follows `docs/AI_WORKFLOW_RULES.md` and current deployment baseline (`develop` and `main` branches).
 
@@ -97,6 +98,23 @@ Required automated coverage:
 Exit criteria:
 - failure handling and recovery paths validated
 - runbook-aligned diagnostics available for common incident classes
+
+## Phase 1D Strategy
+Focus:
+- inverter inventory-driven capture
+- baseline/delta/anomaly computation quality
+- API-level generation summary correctness
+
+Required automated coverage:
+- local stateful API flow (`scripts/phase1d_local_api_tests.sh`)
+- post-deploy stateful API flow (`scripts/phase1d_post_deploy_tests.sh`)
+- modular functional journey (`scripts/functional/run_phase1d_functional_suite.sh`)
+- service-level generation-rule tests (`backend/tests/test_phase1d_generation_rules.py`)
+
+Exit criteria:
+- baseline visit returns zero generation total and baseline flags
+- second finalized visit returns expected positive deltas
+- no negative generation emitted when readings regress
 
 ## Quality Gates by Branch
 - PR to `develop`: lint + unit + integration-compose must pass.

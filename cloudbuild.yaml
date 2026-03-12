@@ -138,6 +138,7 @@ steps:
         export FUNCTIONAL_PHASE1B_EMAIL_SUBJECT="${_PHASE1B_EMAIL_SUBJECT}"
         export FUNCTIONAL_PHASE1B_EMAIL_TEXT="${_PHASE1B_EMAIL_TEXT}"
         export RUN_PHASE1C_POST_DEPLOY_TESTS="${_RUN_PHASE1C_POST_DEPLOY_TESTS}"
+        export RUN_PHASE1D_POST_DEPLOY_TESTS="${_RUN_PHASE1D_POST_DEPLOY_TESTS}"
         export FUNCTIONAL_BEARER_TOKEN="${_FUNCTIONAL_BEARER_TOKEN}"
         bash scripts/post_deploy_cloud_tests.sh
 
@@ -158,6 +159,11 @@ steps:
           gsutil -m cp /workspace/reports/phase1c_post_deploy_summary.md "$${DEST}/"
           gsutil -m cp /workspace/reports/phase1c_post_deploy_junit.xml "$${DEST}/"
           gsutil -m cp /workspace/reports/phase1c_post_deploy_exit_code.txt "$${DEST}/"
+        fi
+        if [ -f /workspace/reports/phase1d_post_deploy_summary.md ]; then
+          gsutil -m cp /workspace/reports/phase1d_post_deploy_summary.md "$${DEST}/"
+          gsutil -m cp /workspace/reports/phase1d_post_deploy_junit.xml "$${DEST}/"
+          gsutil -m cp /workspace/reports/phase1d_post_deploy_exit_code.txt "$${DEST}/"
         fi
         echo "Post-deploy reports uploaded:"
         echo "$${DEST}/post_deploy_summary.md"
@@ -230,6 +236,7 @@ substitutions:
   _PHASE1B_EMAIL_SUBJECT: 'Phase1B cloud notification smoke'
   _PHASE1B_EMAIL_TEXT: 'Phase1B cloud notification smoke message'
   _RUN_PHASE1C_POST_DEPLOY_TESTS: 'true'
+  _RUN_PHASE1D_POST_DEPLOY_TESTS: 'false'
   _FUNCTIONAL_BEARER_TOKEN: ''
   _DOCS_ONLY_OVERRIDE: 'auto'
   _FORCE_FULL_PIPELINE: 'false'

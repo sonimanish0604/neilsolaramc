@@ -9,9 +9,11 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models.workorder import Report, ReportJob
+from app.db.models.site import Site
+from app.db.models.workorder import ChecklistResponse, Report, ReportJob, WorkOrder
 from app.services.approval_tokens import iso_utc, now_utc, parse_iso
-from app.services.report_generator import generate_report_placeholder
+from app.services.report_generator import ReportRenderContext, generate_report_pdf
+from app.services.report_summary import build_workorder_generation_summary
 
 
 TERMINAL_REPORT_JOB_STATUSES = {"SUCCEEDED", "DEAD"}
@@ -94,22 +96,46 @@ def run_report_job(db: Session, *, job: ReportJob, force: bool = False) -> Repor
             job.simulate_failures_remaining -= 1
             raise RuntimeError("simulated transient report generation failure")
 
-        generated = generate_report_placeholder(str(job.workorder_id))
-
         current_version = db.execute(
             select(Report.report_version)
             .where(Report.workorder_id == job.workorder_id)
             .order_by(desc(Report.report_version))
         ).scalars().first()
+        next_version = (current_version or 0) + 1
+
+        workorder = db.execute(select(WorkOrder).where(WorkOrder.id == job.workorder_id)).scalar_one_or_none()
+        if not workorder:
+            raise RuntimeError("workorder not found for report job")
+        site = db.execute(select(Site).where(Site.id == workorder.site_id)).scalar_one_or_none()
+        checklist = db.execute(
+            select(ChecklistResponse).where(ChecklistResponse.workorder_id == workorder.id)
+        ).scalar_one_or_none()
+        generation_summary = build_workorder_generation_summary(db, workorder=workorder)
+        generated = generate_report_pdf(
+            str(job.workorder_id),
+            report_version=next_version,
+            context=ReportRenderContext(
+                site_name=site.site_name if site else None,
+                visit_status=workorder.visit_status,
+                brand_label=settings.pdf_brand_label,
+                include_customer_signature=(job.job_type == "FINAL"),
+                summary_notes=workorder.summary_notes,
+                checklist_answers=checklist.answers_json if checklist else {},
+                generation_total_kwh=generation_summary.generation_total_kwh,
+                generation_summary_rows=generation_summary.snapshot()["inverters"],
+            ),
+        )
 
         report = Report(
             tenant_id=job.tenant_id,
             workorder_id=job.workorder_id,
-            report_version=(current_version or 0) + 1,
+            report_version=next_version,
             pdf_gcs_object_path=generated.gcs_object_path,
             pdf_sha256=generated.sha256,
             pass_count=generated.pass_count,
             fail_count=generated.fail_count,
+            generation_total_kwh=generation_summary.generation_total_kwh,
+            generation_snapshot_json=generation_summary.snapshot(),
             generated_at=generated.generated_at_iso,
             is_final=(job.job_type == "FINAL"),
         )
