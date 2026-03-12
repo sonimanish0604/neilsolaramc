@@ -13,6 +13,7 @@ RUN_PHASE1B_APPROVAL_SCENARIO="${RUN_PHASE1B_APPROVAL_SCENARIO:-false}"
 RUN_PHASE1B_NOTIFICATION_SMOKE="${RUN_PHASE1B_NOTIFICATION_SMOKE:-false}"
 RUN_PHASE1C_TESTS="${RUN_PHASE1C_POST_DEPLOY_TESTS:-false}"
 RUN_PHASE1D_TESTS="${RUN_PHASE1D_POST_DEPLOY_TESTS:-false}"
+RUN_PHASE1E_TESTS="${RUN_PHASE1E_POST_DEPLOY_TESTS:-false}"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -77,6 +78,14 @@ if [[ "${RUN_PHASE1D_TESTS}" == "true" ]]; then
   bash "${ROOT_DIR}/scripts/phase1d_post_deploy_tests.sh" || true
 fi
 
+PHASE1E_EXIT_FILE="${REPORT_DIR}/phase1e_post_deploy_exit_code.txt"
+if [[ "${RUN_PHASE1E_TESTS}" == "true" ]]; then
+  export SUMMARY_FILE="${REPORT_DIR}/phase1e_post_deploy_summary.md"
+  export JUNIT_FILE="${REPORT_DIR}/phase1e_post_deploy_junit.xml"
+  export EXIT_FILE="${PHASE1E_EXIT_FILE}"
+  bash "${ROOT_DIR}/scripts/phase1e_post_deploy_tests.sh" || true
+fi
+
 BASE_EXIT_FILE="${REPORT_DIR}/post_deploy_exit_code.txt"
 if [[ ! -f "${BASE_EXIT_FILE}" ]]; then
   echo "1" > "${BASE_EXIT_FILE}"
@@ -92,6 +101,10 @@ if [[ "${RUN_PHASE1C_TESTS}" == "true" && -f "${PHASE1C_EXIT_FILE}" && "$(cat "$
 fi
 
 if [[ "${RUN_PHASE1D_TESTS}" == "true" && -f "${PHASE1D_EXIT_FILE}" && "$(cat "${PHASE1D_EXIT_FILE}")" != "0" ]]; then
+  OVERALL_EXIT=1
+fi
+
+if [[ "${RUN_PHASE1E_TESTS}" == "true" && -f "${PHASE1E_EXIT_FILE}" && "$(cat "${PHASE1E_EXIT_FILE}")" != "0" ]]; then
   OVERALL_EXIT=1
 fi
 
