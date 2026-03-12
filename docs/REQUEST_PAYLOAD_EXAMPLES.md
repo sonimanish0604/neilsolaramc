@@ -81,6 +81,55 @@ Rule:
 
 ---
 
+## 3A) Configure Site Inverter
+`POST /sites/{site_id}/inverters`
+
+```json
+{
+  "inverter_code": "INV-01",
+  "display_name": "Inverter 01",
+  "capacity_kw": 25,
+  "manufacturer": "Sungrow",
+  "model": "SG25CX",
+  "serial_number": "SG25-001",
+  "commissioned_on": "2018-04-20",
+  "is_active": true
+}
+```
+
+---
+
+## 3B) Capture WorkOrder Inverter Reading
+`POST /workorders/{workorder_id}/inverter-readings`
+
+```json
+{
+  "inverter_id": "inv-uuid-1",
+  "current_reading_kwh": 15432.7,
+  "operational_status": "OPERATIONAL",
+  "remarks": "Display clear",
+  "photo_object_path": "neilsolar-dev-media/workorders/wo-12345/photos/inverter-01.jpg",
+  "photo_content_type": "image/jpeg",
+  "photo_size_bytes": 245678
+}
+```
+
+When a reading is unavailable because the inverter is down:
+
+```json
+{
+  "inverter_id": "inv-uuid-2",
+  "current_reading_kwh": null,
+  "operational_status": "OFFLINE",
+  "remarks": "Display blank, breaker isolated",
+  "photo_object_path": "neilsolar-dev-media/workorders/wo-12345/photos/inverter-02.jpg",
+  "photo_content_type": "image/jpeg",
+  "photo_size_bytes": 238001
+}
+```
+
+---
+
 ## 4) Generate Report Async (idempotent)
 `POST /workorders/{workorder_id}/generate-report-async`
 

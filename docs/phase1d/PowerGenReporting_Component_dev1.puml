@@ -1,0 +1,39 @@
+@startuml
+title Phase 1D - Inverter Reading Capture and Generation Foundation
+
+actor Technician
+participant "Mobile App" as App
+participant "Work Order API" as API
+participant "InverterReadingService" as ReadingSvc
+participant "GenerationCalculationService" as GenSvc
+participant "ReportSummaryService" as ReportSvc
+database "Operational DB" as DB
+
+Technician -> App : Capture inverter photo + current reading
+App -> API : Submit inverter reading
+API -> ReadingSvc : validate and persist reading request
+ReadingSvc -> DB : fetch latest finalized prior reading
+DB --> ReadingSvc : previous reading or none
+
+ReadingSvc -> GenSvc : compute delta/baseline/anomaly
+GenSvc --> ReadingSvc : generation result
+
+ReadingSvc -> DB : save reading snapshot
+ReadingSvc --> API : success
+
+== On report generation ==
+
+App -> API : Request report data
+API -> ReportSvc : build report summary
+ReportSvc -> DB : load inverter readings for work order
+ReportSvc -> GenSvc : aggregate site total generation
+GenSvc --> ReportSvc : total generation
+ReportSvc -> DB : persist report snapshot
+ReportSvc --> API : report summary payload
+API --> App : generation report data
+
+note right of ReportSvc
+Savings presentation is deferred to Phase 1E.
+end note
+
+@enduml

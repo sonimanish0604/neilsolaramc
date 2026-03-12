@@ -1,0 +1,105 @@
+@startuml
+title Solar O&M Reporting - Phase 1D (Implemented) and Phase 1E (Planned)
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor Technician
+actor Supervisor
+actor Customer
+
+rectangle "Mobile App / Web App" as App {
+  component "Work Order UI" as WorkOrderUI
+  component "Inverter Capture UI" as InverterUI
+  component "Report Viewer UI" as ReportUI
+}
+
+rectangle "Backend API Layer" as API {
+  component "Work Order API" as WorkOrderAPI
+  component "Site Config API" as SiteConfigAPI
+  component "Reporting API" as ReportingAPI
+}
+
+package "Application Services" {
+  component "SiteAssetService" as SiteAssetService
+  component "TariffConfigService\n(Phase 1E planned)" as TariffConfigService
+  component "InverterReadingService" as InverterReadingService
+  component "GenerationCalculationService" as GenerationCalculationService
+  component "SavingsCalculationService\n(Phase 1E planned)" as SavingsCalculationService
+  component "PerformanceScoreService\n(Phase 1E planned)" as PerformanceScoreService
+  component "TrendHistoryService\n(Phase 1E planned)" as TrendHistoryService
+  component "ReportSummaryService" as ReportSummaryService
+  component "ChartDataBuilderService\n(Phase 1E planned)" as ChartDataBuilderService
+  component "PDF Report Renderer" as PDFRenderer
+}
+
+database "Operational DB" as DB
+collections "Object Storage\n(Photos / PDFs)" as Storage
+
+rectangle "External / Future Integrations" as Future {
+  component "OCR Service\n(Future slice)" as OCRService
+  component "Inverter Telemetry API\n(Future)" as TelemetryAPI
+}
+
+Technician --> WorkOrderUI
+Technician --> InverterUI
+Supervisor --> ReportUI
+Customer --> ReportUI
+
+WorkOrderUI --> WorkOrderAPI
+InverterUI --> WorkOrderAPI
+ReportUI --> ReportingAPI
+ReportUI --> SiteConfigAPI
+
+WorkOrderAPI --> InverterReadingService
+WorkOrderAPI --> SiteAssetService
+WorkOrderAPI --> TariffConfigService
+
+SiteConfigAPI --> SiteAssetService
+SiteConfigAPI --> TariffConfigService
+
+ReportingAPI --> ReportSummaryService
+ReportingAPI --> TrendHistoryService
+ReportingAPI --> ChartDataBuilderService
+
+InverterReadingService --> GenerationCalculationService
+ReportSummaryService --> GenerationCalculationService
+ReportSummaryService --> SavingsCalculationService
+ReportSummaryService --> PerformanceScoreService
+ReportSummaryService --> ChartDataBuilderService
+ReportSummaryService --> PDFRenderer
+
+SiteAssetService --> DB
+TariffConfigService --> DB
+InverterReadingService --> DB
+GenerationCalculationService --> DB
+TrendHistoryService --> DB
+ReportSummaryService --> DB
+PerformanceScoreService --> DB
+ChartDataBuilderService --> DB
+
+InverterReadingService --> Storage
+PDFRenderer --> Storage
+
+OCRService ..> InverterReadingService : future enhancement
+TelemetryAPI ..> InverterReadingService : future enhancement
+
+note right of GenerationCalculationService
+Phase 1D core:
+- previous accepted lookup
+- baseline handling
+- anomaly detection
+- inverter delta
+- site total generation
+end note
+
+note right of PerformanceScoreService
+Phase 1E core:
+- score calculation
+- banding
+- breakdown
+- score snapshot
+end note
+
+@enduml

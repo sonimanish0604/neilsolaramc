@@ -1,0 +1,33 @@
+@startuml
+title Optional Architecture (Not Selected for MVP): Firestore Sync + Postgres SoR
+actor Technician
+participant "Mobile App\n(Firestore SDK + Local Cache)" as Mobile
+participant "Firestore Cloud\n(Real-Time DB)" as Firestore
+participant "API Gateway\n(Backend Services)" as API
+participant "Postgres DB\n(System of Record)" as Postgres
+participant "Supervisor Dashboard\n(Real-Time Listener)" as Dashboard
+
+== Offline Update ==
+
+Technician -> Mobile: Update Work Order\n(status, notes, meter readings)
+Mobile -> Mobile: Write to Local Cache\n(offline mode)
+Mobile -> Mobile: Queue write for sync\n(waiting for network)
+
+== Network Restored ==
+
+Mobile -> Firestore: Sync queued writes\n(status, notes, readings)
+Firestore --> Mobile: ACK (synced)
+
+== Backend Sync to Postgres ==
+
+Firestore -> API: Trigger webhook / event\n(workorder_id, updated_fields)
+API -> Postgres: INSERT INTO workorder_events\n(status, notes, readings, timestamp)
+Postgres --> API: event_id
+API -> Firestore: Update doc\n{synced_to_postgres: true}
+
+== Real-Time Broadcast ==
+
+Firestore -> Dashboard: Push update\n(status, technician_location)
+Firestore -> Mobile: Push update\n(latest state)
+
+@enduml

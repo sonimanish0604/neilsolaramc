@@ -42,12 +42,22 @@ class InverterReading(TenantScopedMixin, Base):
     power_kw: Mapped[float | None] = mapped_column(Numeric, nullable=True)
     day_kwh: Mapped[float | None] = mapped_column(Numeric, nullable=True)
     total_kwh: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    current_reading_kwh: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    previous_reading_kwh: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    generation_delta_kwh: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    is_baseline: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_anomaly: Mapped[bool] = mapped_column(nullable=False, default=False)
+    anomaly_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    operational_status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    remarks: Mapped[str | None] = mapped_column(Text, nullable=True)
+    captured_at: Mapped[str | None] = mapped_column(String(40), nullable=True)
 
 
 class Media(TenantScopedMixin, Base):
     __tablename__ = "media"
 
     workorder_id: Mapped[PGUUID] = mapped_column(PGUUID(as_uuid=True), nullable=False, index=True)
+    inverter_reading_id: Mapped[PGUUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True, index=True)
     item_key: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     media_type: Mapped[str] = mapped_column(String(20), default="PHOTO", nullable=False)
     gcs_object_path: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -77,6 +87,8 @@ class Report(TenantScopedMixin, Base):
     pdf_sha256: Mapped[str] = mapped_column(String(80), nullable=False)
     pass_count: Mapped[int] = mapped_column(nullable=False, default=0)
     fail_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    generation_total_kwh: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    generation_snapshot_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     generated_at: Mapped[str] = mapped_column(String(40), nullable=False)
     is_final: Mapped[bool] = mapped_column(nullable=False, default=False)
 
