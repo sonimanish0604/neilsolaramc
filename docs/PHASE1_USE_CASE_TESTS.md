@@ -140,11 +140,33 @@ This document adds scenario-based tests on top of:
   - `backend/tests/test_phase1d_generation_rules.py`
   - `TEST_CASES_PHASE1`: `P1D-004` ... `P1D-009`
 
+## Phase 1E Scenarios (Feature A in progress)
+
+### UC-1E-001 Site Coordinate Setup for Geo Validation
+- Goal: owner/supervisor can store valid site coordinates to support evidence geo-validation.
+- Coverage Mapping:
+  - `backend/tests/test_phase1a_validations.py`
+  - `TEST_CASES_PHASE1`: `P1E-A-001`, `P1E-A-002`
+
+### UC-1E-002 Technician Capture with Geo Validation Outcomes
+- Goal: inverter reading capture returns deterministic geo-validation outcomes (`verified`, `outside_site_boundary`, `missing_device_location`, `geo_unverified`, `low_accuracy`).
+- Coverage Mapping:
+  - `backend/tests/test_phase1e_geo_validation.py`
+  - `TEST_CASES_PHASE1`: `P1E-A-003` ... `P1E-A-009`
+
+### UC-1E-003 Phase Boundary Guard
+- Goal: keep Feature A scope focused on site-level geo validation without introducing inverter asset-level geo-tag dependency.
+- Coverage Mapping:
+  - `docs/phase1e/phase1e_geotag_and_ocr.md` (scope/out-of-scope guardrails)
+  - `TEST_CASES_PHASE1` Feature-4 deferral note
+
 ## Execution Guidance
 - Local functional run:
   - `bash scripts/phase1a_local_api_tests.sh`
 - Local phase1d focused functional run:
   - `FUNCTIONAL_ASSIGNED_TECH_USER_ID=<tech_user_uuid> bash scripts/functional/run_phase1d_functional_suite.sh`
+- Local phase1e geo-rule run:
+  - `pytest backend/tests/test_phase1e_geo_validation.py`
 - Reusable modular runner:
   - `bash scripts/functional/run_functional_suite.sh`
 - Post-deploy functional checks:

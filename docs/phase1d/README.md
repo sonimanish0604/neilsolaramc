@@ -4,13 +4,13 @@ This folder contains phase-specific working notes and diagrams for the Power Gen
 
 ## Current status
 - Phase 1D: implemented (API capture + generation foundation)
-- Phase 1E: planned (score/visual/savings presentation)
+- Phase 1E: active in `docs/phase1e` (geo-validation + OCR evidence pipeline)
+- Phase 1F: planned (score/visual/savings presentation)
 
 ## Documents
-- `Phase1d_PowerGenOverview.md`: implemented scope, rules, and planned next scope
-- `PowerGenerationReporting_ARCH.puml`: architecture view across 1D (implemented) and 1E (planned)
+- `Phase1d_PowerGenOverview.md`: implemented Phase 1D scope and rules
+- `PowerGenerationReporting_ARCH.puml`: architecture view across 1D (implemented) and deferred score/visual track
 - `PowerGenReporting_Component_dev1.puml`: Phase 1D sequence
-- `PowerGenPerfScoreandVisualReport_dev2.puml`: Phase 1E sequence (planned)
 - `PowerGenArchwithFirestore.puml`: optional alternative architecture exploration
 - `PowerGenDevStrture.txt`: conceptual service structure notes
 

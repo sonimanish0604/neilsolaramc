@@ -1,8 +1,7 @@
-# Phase 1D / Phase 1E - Implementation Overview
+# Phase 1D - Implementation Overview
 
 ## Current Naming
 - **Phase 1D**: Inverter reading capture and generation foundation (implemented in this cycle)
-- **Phase 1E**: Performance score, savings presentation, and visual reporting (planned next)
 
 This replaces older wording that referred to "Phase 1D-A" and "Phase 1D-B".
 
@@ -87,13 +86,10 @@ For MVP, this phase focuses on reliable operational truth in API/database first.
   - `scripts/functional/scenarios/uc_1d_002_visit1_capture_baseline.sh`
   - `scripts/functional/scenarios/uc_1d_003_visit2_capture_delta.sh`
 
-## Phase 1E Scope (Planned)
-- Savings model and tariff configuration UX/API
-- Performance score with documented formula and snapshot behavior
-- Visual reporting data model and rendering sections
-- Report/PDF presentation enhancements for owner-facing value narrative
-
 ## Firestore Position (Decision for MVP)
 - Postgres remains system of record.
 - Firestore is not required for current Phase 1D implementation.
 - Firestore may be revisited later only if real-time/offline sync requirements justify added operational complexity.
+
+## Deferred Track
+- Performance score, savings presentation, and visual-report enhancements are deferred to **Phase 1F** and intentionally excluded from the Phase 1E scope.

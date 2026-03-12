@@ -1,4 +1,4 @@
-# Phase 1 Test Cases (1A, 1B, 1C, 1D)
+# Phase 1 Test Cases (1A, 1B, 1C, 1D, 1E)
 
 ## Conventions
 - Priority: `P0` (must block), `P1` (high), `P2` (medium)
@@ -86,6 +86,28 @@ Phase 1B automation mapping:
 | P1D-010 | P1 | POST_DEPLOY | Phase1D post-deploy stateful suite | all phase1d checks pass |
 | P1D-011 | P1 | FUNCTIONAL | Two-visit baseline-to-delta journey (`2026-01-05` -> `2026-01-15`) | visit1 baseline total and visit2 delta total are correct |
 
+## Phase 1E Feature A Test Cases (Geo Validation Foundation)
+
+| ID | Priority | Type | Scenario | Expected Result |
+|---|---|---|---|---|
+| P1E-A-001 | P0 | INTEGRATION | Create site with valid coordinate pair | `201`, `site_latitude` and `site_longitude` persisted |
+| P1E-A-002 | P0 | INTEGRATION | Create/update site with only one coordinate | `422/400` validation error; partial coordinate not accepted |
+| P1E-A-003 | P0 | INTEGRATION | Capture reading with missing site coordinates | `geo_validation_status=geo_unverified`, reason indicates missing site coordinates |
+| P1E-A-004 | P0 | INTEGRATION | Capture reading with missing device coordinates | `geo_validation_status=missing_device_location` |
+| P1E-A-005 | P1 | INTEGRATION | Capture reading with low device accuracy | `geo_validation_status=low_accuracy` |
+| P1E-A-006 | P0 | INTEGRATION | Capture reading outside configured distance threshold | `geo_validation_status=outside_site_boundary`, positive `distance_to_site_meters` |
+| P1E-A-007 | P0 | INTEGRATION | Capture reading within configured distance threshold | `geo_validation_status=verified`, positive `distance_to_site_meters` |
+| P1E-A-008 | P1 | UNIT | Haversine distance computation sanity | distance result deterministic and non-negative |
+| P1E-A-009 | P1 | INTEGRATION | Capture API response includes geo fields | response includes `device_*`, `distance_to_site_meters`, `geo_validation_status`, `geo_validation_reason` |
+
+Phase 1E Feature A automation mapping:
+- `P1E-A-002`: `backend/tests/test_phase1a_validations.py`
+- `P1E-A-003` ... `P1E-A-008`: `backend/tests/test_phase1e_geo_validation.py`
+- `P1E-A-009`: covered by `backend/tests/test_phase1e_geo_validation.py` schema validation and route contract checks
+
+Feature-4 deferral note:
+- Inverter asset-level geo-tagging and inverter-to-site proximity validation are deferred to Feature-4 and excluded from Phase 1E Feature A.
+
 ## Cross-Phase Security and Data Isolation Cases
 
 | ID | Priority | Type | Scenario | Expected Result |
@@ -103,4 +125,5 @@ Phase 1B automation mapping:
 - Phase1D local API stateful: `scripts/phase1d_local_api_tests.sh`
 - Phase1D post-deploy stateful: `scripts/phase1d_post_deploy_tests.sh`
 - Phase1D functional modular: `scripts/functional/run_phase1d_functional_suite.sh`
+- Phase1E Feature A rule tests: `backend/tests/test_phase1e_geo_validation.py`
 - JUnit and summary artifacts uploaded to CI and GCS report bucket
