@@ -29,6 +29,8 @@ class SiteCreate(BaseModel):
     site_name: str = Field(min_length=2, max_length=200)
     address: Optional[str] = None
     capacity_kw: Optional[float] = Field(default=None, ge=0)
+    site_latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    site_longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     status: str = Field(default="ACTIVE", pattern="^(ACTIVE|INACTIVE)$")
     site_supervisor_name: Optional[str] = Field(default=None, max_length=200)
     site_supervisor_email: Optional[str] = Field(default=None, max_length=200)
@@ -38,6 +40,8 @@ class SiteCreate(BaseModel):
     def validate_contact_present(self):
         if not (self.site_supervisor_phone or self.site_supervisor_email):
             raise ValueError("Either site_supervisor_phone or site_supervisor_email is required")
+        if (self.site_latitude is None) != (self.site_longitude is None):
+            raise ValueError("Both site_latitude and site_longitude are required when setting site coordinates")
         return self
 
 
@@ -45,10 +49,18 @@ class SiteUpdate(BaseModel):
     site_name: Optional[str] = Field(default=None, min_length=2, max_length=200)
     address: Optional[str] = None
     capacity_kw: Optional[float] = Field(default=None, ge=0)
+    site_latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    site_longitude: Optional[float] = Field(default=None, ge=-180, le=180)
     status: Optional[str] = Field(default=None, pattern="^(ACTIVE|INACTIVE)$")
     site_supervisor_name: Optional[str] = Field(default=None, max_length=200)
     site_supervisor_email: Optional[str] = Field(default=None, max_length=200)
     site_supervisor_phone: Optional[str] = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def validate_coordinates_pair(self):
+        if (self.site_latitude is None) != (self.site_longitude is None):
+            raise ValueError("Both site_latitude and site_longitude are required when setting site coordinates")
+        return self
 
 
 class SiteOut(BaseModel):
@@ -57,6 +69,8 @@ class SiteOut(BaseModel):
     site_name: str
     address: Optional[str] = None
     capacity_kw: Optional[float] = None
+    site_latitude: Optional[float] = None
+    site_longitude: Optional[float] = None
     status: str
     site_supervisor_name: Optional[str] = None
     site_supervisor_email: Optional[str] = None

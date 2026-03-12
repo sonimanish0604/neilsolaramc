@@ -26,6 +26,8 @@ class Site(TenantScopedMixin, Base):
     site_supervisor_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     site_supervisor_email: Mapped[str | None] = mapped_column(String(200), nullable=True)
     site_supervisor_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    site_latitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    site_longitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
 
 
 class SiteInverter(TenantScopedMixin, Base):

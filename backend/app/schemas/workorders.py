@@ -158,6 +158,9 @@ class WorkOrderInverterListOut(BaseModel):
 class InverterReadingCaptureIn(BaseModel):
     inverter_id: str
     current_reading_kwh: Optional[float] = Field(default=None, ge=0)
+    device_latitude: Optional[float] = Field(default=None, ge=-90, le=90)
+    device_longitude: Optional[float] = Field(default=None, ge=-180, le=180)
+    device_accuracy_meters: Optional[float] = Field(default=None, ge=0)
     operational_status: str = Field(pattern="^(OPERATIONAL|OFFLINE|FAULT|UNAVAILABLE)$")
     remarks: Optional[str] = None
     photo_object_path: str
@@ -170,6 +173,12 @@ class InverterReadingCaptureIn(BaseModel):
             raise ValueError("current_reading_kwh is required when operational_status is OPERATIONAL")
         if self.current_reading_kwh is None and not (self.remarks and self.remarks.strip()):
             raise ValueError("remarks are required when current_reading_kwh is omitted")
+        if (self.device_latitude is None) != (self.device_longitude is None):
+            raise ValueError("Both device_latitude and device_longitude are required when location is provided")
+        if self.device_accuracy_meters is not None and (
+            self.device_latitude is None or self.device_longitude is None
+        ):
+            raise ValueError("device_accuracy_meters requires both device_latitude and device_longitude")
         return self
 
 
@@ -184,6 +193,12 @@ class InverterReadingCaptureOut(BaseModel):
     is_baseline: bool
     is_anomaly: bool
     anomaly_reason: Optional[str] = None
+    device_latitude: Optional[float] = None
+    device_longitude: Optional[float] = None
+    device_accuracy_meters: Optional[float] = None
+    distance_to_site_meters: Optional[float] = None
+    geo_validation_status: Optional[str] = None
+    geo_validation_reason: Optional[str] = None
     operational_status: Optional[str] = None
     remarks: Optional[str] = None
     photo_object_path: str
