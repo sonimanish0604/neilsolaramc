@@ -30,6 +30,8 @@ class ReportRenderContext:
     include_customer_signature: bool = False
     summary_notes: str | None = None
     checklist_answers: dict[str, Any] | None = None
+    generation_total_kwh: float | None = None
+    generation_summary_rows: list[dict[str, Any]] | None = None
 
 
 def generate_report_pdf(
@@ -137,6 +139,10 @@ def _render_pdf_bytes(
         ("Visit Status", context.visit_status or "-"),
         ("Pass Count", str(pass_count)),
         ("Fail Count", str(fail_count)),
+        (
+            "Generation Total (kWh)",
+            f"{context.generation_total_kwh:.2f}" if context.generation_total_kwh is not None else "-",
+        ),
         ("Customer Signature Included", "Yes" if context.include_customer_signature else "No"),
         ("Logo Path", context.logo_object_path or "-"),
     ]
@@ -173,11 +179,36 @@ def _render_pdf_bytes(
         "1. Header and workorder summary",
         "2. Checklist observations",
         "3. Meter and inverter readings",
-        "4. Technician and customer signatures",
-        "5. Footer and generation metadata",
+        "4. Inverter generation summary",
+        "5. Technician and customer signatures",
+        "6. Footer and generation metadata",
     ]:
         pdf.drawString(52, y, line)
         y -= 14
+
+    generation_rows = context.generation_summary_rows or []
+    if generation_rows:
+        pdf.showPage()
+        y = height - 50
+        pdf.setFont("Helvetica-Bold", 14)
+        pdf.drawString(40, y, "Inverter Generation Summary")
+        y -= 20
+        pdf.setFont("Helvetica", 10)
+        for row in generation_rows:
+            label = row.get("display_name") or row.get("inverter_code") or "Inverter"
+            current = _display_number(row.get("current_reading_kwh"))
+            previous = _display_number(row.get("previous_reading_kwh"))
+            delta = "Baseline established" if row.get("is_baseline") else _display_number(row.get("generation_delta_kwh"))
+            if row.get("is_anomaly"):
+                delta = "Anomaly"
+            line = f"{label}: prev {previous} | current {current} | generation {delta}"
+            for wrapped in _wrap_text(line, max_chars=95):
+                pdf.drawString(40, y, wrapped)
+                y -= 14
+                if y < 80:
+                    pdf.showPage()
+                    y = height - 50
+                    pdf.setFont("Helvetica", 10)
 
     pdf.showPage()
     pdf.save()
@@ -201,3 +232,11 @@ def _wrap_text(text: str, *, max_chars: int) -> list[str]:
             current = word
     lines.append(current)
     return lines
+
+
+def _display_number(value: Any) -> str:
+    if value is None:
+        return "-"
+    if isinstance(value, (int, float)):
+        return f"{value:.2f}"
+    return str(value)

@@ -1,0 +1,23 @@
+Phase 1D implemented module shape (actual repo paths)
+
+/backend/app/services
+  inverter_readings.py
+  report_summary.py
+  report_generator.py
+
+/backend/app/api/routes
+  application.py
+  workorders.py
+  approvals.py
+
+/backend/app/db/models
+  site.py
+  workorder.py
+
+Phase 1E planned additions (conceptual)
+
+/backend/app/services
+  savings_calculation.py
+  performance_score.py
+  trend_history.py
+  chart_data_builder.py

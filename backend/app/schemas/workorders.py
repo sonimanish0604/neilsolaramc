@@ -26,6 +26,11 @@ class InverterReadingIn(BaseModel):
     power_kw: Optional[float] = None
     day_kwh: Optional[float] = None
     total_kwh: Optional[float] = None
+    operational_status: Optional[str] = Field(
+        default=None,
+        pattern="^(OPERATIONAL|OFFLINE|FAULT|UNAVAILABLE)$",
+    )
+    remarks: Optional[str] = None
 
 
 class NetMeterIn(BaseModel):
@@ -68,6 +73,9 @@ class WorkOrderSubmit(BaseModel):
             raise ValueError("A maximum of 20 photos is allowed per visit")
         if not any(m.item_key == "net_meter_readings" for m in self.media):
             raise ValueError("At least one net_meter_readings photo is required")
+        inverter_ids = [reading.inverter_id for reading in self.inverter_readings]
+        if len(set(inverter_ids)) != len(inverter_ids):
+            raise ValueError("Duplicate inverter_id entries are not allowed")
         return self
 
 
@@ -131,3 +139,75 @@ class ReportJobOut(BaseModel):
 class GenerateReportSyncOut(BaseModel):
     status: str
     job: ReportJobOut
+
+
+class WorkOrderConfiguredInverterOut(BaseModel):
+    inverter_id: str
+    inverter_code: str
+    display_name: str
+    capacity_kw: Optional[float] = None
+    latest_accepted_reading_kwh: Optional[float] = None
+
+
+class WorkOrderInverterListOut(BaseModel):
+    workorder_id: str
+    site_id: str
+    inverters: list[WorkOrderConfiguredInverterOut]
+
+
+class InverterReadingCaptureIn(BaseModel):
+    inverter_id: str
+    current_reading_kwh: Optional[float] = Field(default=None, ge=0)
+    operational_status: str = Field(pattern="^(OPERATIONAL|OFFLINE|FAULT|UNAVAILABLE)$")
+    remarks: Optional[str] = None
+    photo_object_path: str
+    photo_content_type: str
+    photo_size_bytes: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def validate_status_and_reading(self):
+        if self.operational_status == "OPERATIONAL" and self.current_reading_kwh is None:
+            raise ValueError("current_reading_kwh is required when operational_status is OPERATIONAL")
+        if self.current_reading_kwh is None and not (self.remarks and self.remarks.strip()):
+            raise ValueError("remarks are required when current_reading_kwh is omitted")
+        return self
+
+
+class InverterReadingCaptureOut(BaseModel):
+    reading_id: str
+    inverter_id: str
+    inverter_code: str
+    display_name: str
+    previous_reading_kwh: Optional[float] = None
+    current_reading_kwh: Optional[float] = None
+    generation_delta_kwh: Optional[float] = None
+    is_baseline: bool
+    is_anomaly: bool
+    anomaly_reason: Optional[str] = None
+    operational_status: Optional[str] = None
+    remarks: Optional[str] = None
+    photo_object_path: str
+
+
+class ReportDataInverterOut(BaseModel):
+    inverter_id: str
+    inverter_code: str
+    display_name: str
+    previous_reading_kwh: Optional[float] = None
+    current_reading_kwh: Optional[float] = None
+    generation_delta_kwh: Optional[float] = None
+    is_baseline: bool
+    is_anomaly: bool
+    anomaly_reason: Optional[str] = None
+    operational_status: Optional[str] = None
+    remarks: Optional[str] = None
+    photo_object_path: Optional[str] = None
+
+
+class WorkOrderReportDataOut(BaseModel):
+    workorder_id: str
+    site_id: str
+    generation_total_kwh: float
+    baseline_inverter_count: int
+    anomaly_count: int
+    inverters: list[ReportDataInverterOut]

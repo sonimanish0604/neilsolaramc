@@ -37,6 +37,9 @@ Base URL (per env):
 - `POST /sites`
 - `GET /sites`
 - `PATCH /sites/{site_id}`
+- `POST /sites/{site_id}/inverters`
+- `GET /sites/{site_id}/inverters`
+- `PATCH /sites/{site_id}/inverters/{inverter_id}`
 
 Site contact requirements:
 - At least one must be present:
@@ -49,11 +52,21 @@ Site contact requirements:
 - `POST /workorders`
 - `GET /workorders` (supports `assigned_to=me`)
 - `GET /workorders/{workorder_id}`
+- `GET /workorders/{workorder_id}/inverters`
+- `POST /workorders/{workorder_id}/inverter-readings`
+- `GET /workorders/{workorder_id}/report-data`
 - `POST /workorders/{workorder_id}/submit`
 - `PATCH /workorders/{workorder_id}/status`
 
 Lifecycle:
 - `SCHEDULED -> IN_PROGRESS -> SUBMITTED -> CUSTOMER_SIGNED -> CLOSED`
+
+Generation capture rules:
+- Site inverter inventory drives the capture flow when configured.
+- One active reading record is maintained per `workorder + inverter` by the API.
+- Prior generation comparison uses accepted/finalized prior work orders only.
+- First accepted reading becomes the baseline and does not produce a generation delta.
+- If current cumulative reading is lower than the latest accepted reading, the record is flagged as an anomaly and negative generation is not calculated.
 
 ---
 

@@ -117,24 +117,52 @@ This document adds scenario-based tests on top of:
 - Coverage Mapping:
   - `scripts/phase1c_local_api_tests.sh`
   - `scripts/phase1c_post_deploy_tests.sh`
-  - `TEST_CASES_PHASE1`: `P1C-006`, `P1C-009`, `P1C-011`, `SEC-001` ... `SEC-005`
+- `TEST_CASES_PHASE1`: `P1C-006`, `P1C-009`, `P1C-011`, `SEC-001` ... `SEC-005`
+
+## Phase 1D Scenarios (Implemented)
+
+### UC-1D-001 Site Inverter Inventory Configuration
+- Goal: owner/supervisor can configure active site inverter inventory for visit execution.
+- Coverage Mapping:
+  - `scripts/phase1d_local_api_tests.sh`
+  - `scripts/phase1d_post_deploy_tests.sh`
+  - `scripts/functional/scenarios/uc_1d_001_setup_site_inventory.sh`
+  - `TEST_CASES_PHASE1`: `P1D-001`, `P1D-002`, `P1D-003`
+
+### UC-1D-002 Technician Reading Capture and Generation Baseline/Delta
+- Goal: technician captures proof-photo-backed inverter readings; system computes baseline and delta correctly.
+- Coverage Mapping:
+  - `scripts/phase1d_local_api_tests.sh`
+  - `scripts/phase1d_post_deploy_tests.sh`
+  - `scripts/functional/scenarios/uc_1d_002_visit1_capture_baseline.sh`
+  - `scripts/functional/scenarios/uc_1d_003_visit2_capture_delta.sh`
+  - `scripts/functional/run_phase1d_functional_suite.sh`
+  - `backend/tests/test_phase1d_generation_rules.py`
+  - `TEST_CASES_PHASE1`: `P1D-004` ... `P1D-009`
 
 ## Execution Guidance
 - Local functional run:
   - `bash scripts/phase1a_local_api_tests.sh`
+- Local phase1d focused functional run:
+  - `FUNCTIONAL_ASSIGNED_TECH_USER_ID=<tech_user_uuid> bash scripts/functional/run_phase1d_functional_suite.sh`
 - Reusable modular runner:
   - `bash scripts/functional/run_functional_suite.sh`
 - Post-deploy functional checks:
   - `scripts/post_deploy_cloud_tests.sh` (always runs preflight checks)
   - stateful UC scenarios run when `RUN_STATEFUL_POST_DEPLOY_TESTS=true`
   - phase1c stateful checks run when `RUN_PHASE1C_POST_DEPLOY_TESTS=true`
+  - phase1d stateful checks run when `RUN_PHASE1D_POST_DEPLOY_TESTS=true`
 
 ### Modular Automation Layout
 - `scripts/functional/lib/common.sh`
 - `scripts/functional/scenarios/uc_1a_001_tenant_onboarding.sh`
 - `scripts/functional/scenarios/uc_1a_002_customer_site_flow.sh`
 - `scripts/functional/scenarios/uc_1a_003_tech_submit_validation.sh`
+- `scripts/functional/scenarios/uc_1d_001_setup_site_inventory.sh`
+- `scripts/functional/scenarios/uc_1d_002_visit1_capture_baseline.sh`
+- `scripts/functional/scenarios/uc_1d_003_visit2_capture_delta.sh`
 - `scripts/functional/run_functional_suite.sh`
+- `scripts/functional/run_phase1d_functional_suite.sh`
 
 Note:
 - `UC-1A-002` requires authenticated application-user API access.

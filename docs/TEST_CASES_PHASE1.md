@@ -1,4 +1,4 @@
-# Phase 1 Test Cases (1A, 1B, 1C)
+# Phase 1 Test Cases (1A, 1B, 1C, 1D)
 
 ## Conventions
 - Priority: `P0` (must block), `P1` (high), `P2` (medium)
@@ -70,6 +70,22 @@ Phase 1B automation mapping:
 | P1C-010 | P0 | INTEGRATION | Report job retry/backoff | first attempt fails, `next_retry_at` set, retry can succeed |
 | P1C-011 | P1 | INTEGRATION | Correlation ID propagation | response/body correlation IDs present and traceable |
 
+## Phase 1D Test Cases
+
+| ID | Priority | Type | Scenario | Expected Result |
+|---|---|---|---|---|
+| P1D-001 | P0 | INTEGRATION | Create site inverter inventory record | `200`, inverter linked to site |
+| P1D-002 | P0 | INTEGRATION | Update inverter inventory record | `200`, updated fields persisted |
+| P1D-003 | P1 | INTEGRATION | List site/workorder configured inverters | active configured set returned |
+| P1D-004 | P0 | INTEGRATION | Capture first reading with no prior accepted value | `is_baseline=true`, `generation_delta_kwh=null` |
+| P1D-005 | P0 | INTEGRATION | Capture reading where current >= prior accepted | delta computed correctly |
+| P1D-006 | P0 | INTEGRATION | Capture reading where current < prior accepted | `is_anomaly=true`, delta not negative |
+| P1D-007 | P0 | INTEGRATION | Submit with configured inverters but missing captures | `400` with completeness errors |
+| P1D-008 | P1 | INTEGRATION | `GET /workorders/{id}/report-data` after baseline visit | generation total reflects baseline behavior |
+| P1D-009 | P1 | INTEGRATION | `GET /workorders/{id}/report-data` after second visit | generation total sums valid deltas only |
+| P1D-010 | P1 | POST_DEPLOY | Phase1D post-deploy stateful suite | all phase1d checks pass |
+| P1D-011 | P1 | FUNCTIONAL | Two-visit baseline-to-delta journey (`2026-01-05` -> `2026-01-15`) | visit1 baseline total and visit2 delta total are correct |
+
 ## Cross-Phase Security and Data Isolation Cases
 
 | ID | Priority | Type | Scenario | Expected Result |
@@ -84,4 +100,7 @@ Phase 1B automation mapping:
 - Unit tests: `backend/tests/unit/*`
 - Integration tests: `backend/tests/integration/*`
 - Post-deploy suite driver: `scripts/post_deploy_cloud_tests.sh`
+- Phase1D local API stateful: `scripts/phase1d_local_api_tests.sh`
+- Phase1D post-deploy stateful: `scripts/phase1d_post_deploy_tests.sh`
+- Phase1D functional modular: `scripts/functional/run_phase1d_functional_suite.sh`
 - JUnit and summary artifacts uploaded to CI and GCS report bucket
