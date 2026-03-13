@@ -147,6 +147,12 @@ def _capture_out(db, inverter, reading: InverterReading) -> InverterReadingCaptu
         is_baseline=reading.is_baseline,
         is_anomaly=reading.is_anomaly,
         anomaly_reason=reading.anomaly_reason,
+        device_latitude=to_float(reading.device_latitude),
+        device_longitude=to_float(reading.device_longitude),
+        device_accuracy_meters=to_float(reading.device_accuracy_meters),
+        distance_to_site_meters=to_float(reading.distance_to_site_meters),
+        geo_validation_status=reading.geo_validation_status,
+        geo_validation_reason=reading.geo_validation_reason,
         operational_status=reading.operational_status,
         remarks=reading.remarks,
         photo_object_path=media.gcs_object_path if media else "",
@@ -323,6 +329,9 @@ def capture_inverter_reading(workorder_id: str, payload: InverterReadingCaptureI
             raise HTTPException(status_code=404, detail="Configured site inverter not found")
         if not inverter.is_active:
             raise HTTPException(status_code=409, detail="Inactive site inverter cannot be captured")
+        site = db.execute(select(Site).where(Site.id == wo.site_id)).scalar_one_or_none()
+        if not site:
+            raise HTTPException(status_code=404, detail="Site not found")
 
         reading = upsert_workorder_inverter_reading(
             db,
@@ -336,6 +345,11 @@ def capture_inverter_reading(workorder_id: str, payload: InverterReadingCaptureI
                 photo_object_path=payload.photo_object_path,
                 photo_content_type=payload.photo_content_type,
                 photo_size_bytes=payload.photo_size_bytes,
+                site_latitude=to_float(site.site_latitude),
+                site_longitude=to_float(site.site_longitude),
+                device_latitude=payload.device_latitude,
+                device_longitude=payload.device_longitude,
+                device_accuracy_meters=payload.device_accuracy_meters,
             ),
             captured_at_iso=captured_at_iso,
         )

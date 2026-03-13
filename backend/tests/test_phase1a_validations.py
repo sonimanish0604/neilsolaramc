@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from app.api.routes.workorders import _can_transition
 from app.schemas.approvals import CustomerSignIn
+from app.schemas.application import SiteCreate, SiteUpdate
 from app.schemas.workorders import WorkOrderSubmit
 
 
@@ -83,6 +84,21 @@ def test_customer_sign_rejects_non_png_signature():
             signer_phone="+919888888888",
             signature_object_path="signatures/customer-signature.jpg",
         )
+
+
+def test_site_create_rejects_single_coordinate_without_pair():
+    with pytest.raises(ValidationError):
+        SiteCreate(
+            customer_id="11111111-1111-1111-1111-111111111111",
+            site_name="Plant A",
+            site_latitude=19.076,
+            site_supervisor_phone="+919999999999",
+        )
+
+
+def test_site_update_rejects_single_coordinate_without_pair():
+    with pytest.raises(ValidationError):
+        SiteUpdate(site_longitude=72.8777)
 
 
 def test_workorder_transition_rules():

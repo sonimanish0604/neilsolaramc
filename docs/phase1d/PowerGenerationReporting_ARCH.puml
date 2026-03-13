@@ -1,5 +1,5 @@
 @startuml
-title Solar O&M Reporting - Phase 1D (Implemented) and Phase 1E (Planned)
+title Solar O&M Reporting - Phase 1D (Implemented) and Deferred Score/Visual Track (Phase 1F)
 
 skinparam componentStyle rectangle
 skinparam shadowing false
@@ -23,14 +23,14 @@ rectangle "Backend API Layer" as API {
 
 package "Application Services" {
   component "SiteAssetService" as SiteAssetService
-  component "TariffConfigService\n(Phase 1E planned)" as TariffConfigService
+  component "TariffConfigService\n(Phase 1F planned)" as TariffConfigService
   component "InverterReadingService" as InverterReadingService
   component "GenerationCalculationService" as GenerationCalculationService
-  component "SavingsCalculationService\n(Phase 1E planned)" as SavingsCalculationService
-  component "PerformanceScoreService\n(Phase 1E planned)" as PerformanceScoreService
-  component "TrendHistoryService\n(Phase 1E planned)" as TrendHistoryService
+  component "SavingsCalculationService\n(Phase 1F planned)" as SavingsCalculationService
+  component "PerformanceScoreService\n(Phase 1F planned)" as PerformanceScoreService
+  component "TrendHistoryService\n(Phase 1F planned)" as TrendHistoryService
   component "ReportSummaryService" as ReportSummaryService
-  component "ChartDataBuilderService\n(Phase 1E planned)" as ChartDataBuilderService
+  component "ChartDataBuilderService\n(Phase 1F planned)" as ChartDataBuilderService
   component "PDF Report Renderer" as PDFRenderer
 }
 
@@ -95,7 +95,7 @@ Phase 1D core:
 end note
 
 note right of PerformanceScoreService
-Phase 1E core:
+Phase 1F core:
 - score calculation
 - banding
 - breakdown

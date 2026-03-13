@@ -71,6 +71,12 @@ Inverter reading capture and generation foundation:
 - Local + post-deploy + modular functional automation
 
 ### Phase 1E (Planned)
+Evidence enrichment layer:
+- Geo-validation for inverter capture evidence
+- OCR-assisted inverter serial extraction (asset registration flow)
+- OCR-assisted inverter reading extraction with review/correction path
+
+### Phase 1F (Planned)
 Reporting enrichment layer:
 - Savings presentation (tariff-driven)
 - Plant performance scoring
@@ -127,6 +133,8 @@ WorkOrder lifecycle:
 - `docs/PHASE1C_ACCOMPLISHMENTS_AND_NEXT_STEPS.md`
 - `docs/phase1d/README.md`
 - `docs/phase1d/Phase1d_PowerGenOverview.md`
+- `docs/phase1e/phase1e_dbschema_api.md`
+- `docs/phase1e/phase1e_geotag_and_ocr.md`
 
 ## Local Development
 - Python 3.11+

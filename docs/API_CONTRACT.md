@@ -46,6 +46,10 @@ Site contact requirements:
   - `site_supervisor_phone`
   - `site_supervisor_email`
 
+Site geo fields (Phase 1E Feature A):
+- `site_latitude` (optional)
+- `site_longitude` (optional)
+
 ---
 
 ## WorkOrders
@@ -64,6 +68,14 @@ Lifecycle:
 Generation capture rules:
 - Site inverter inventory drives the capture flow when configured.
 - One active reading record is maintained per `workorder + inverter` by the API.
+- Capture payload may include optional device location metadata:
+  - `device_latitude`
+  - `device_longitude`
+  - `device_accuracy_meters`
+- API computes and persists geo-validation fields on capture:
+  - `geo_validation_status`
+  - `geo_validation_reason`
+  - `distance_to_site_meters`
 - Prior generation comparison uses accepted/finalized prior work orders only.
 - First accepted reading becomes the baseline and does not produce a generation delta.
 - If current cumulative reading is lower than the latest accepted reading, the record is flagged as an anomaly and negative generation is not calculated.

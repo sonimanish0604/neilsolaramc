@@ -30,6 +30,8 @@ All tenant-scoped tables include:
 - `site_supervisor_name`
 - `site_supervisor_phone` (nullable)
 - `site_supervisor_email` (nullable)
+- `site_latitude` (nullable, optional in Phase 1E)
+- `site_longitude` (nullable, optional in Phase 1E)
 - rule: at least one contact channel (phone/email) must exist
 
 ### site_inverters
@@ -61,6 +63,10 @@ All tenant-scoped tables include:
 - `workorder_id`, `inverter_id`, `power_kw`, `day_kwh`, `total_kwh`
 - `current_reading_kwh`, `previous_reading_kwh`, `generation_delta_kwh`
 - `is_baseline`, `is_anomaly`, `anomaly_reason`
+- `device_latitude`, `device_longitude`, `device_accuracy_meters` (nullable)
+- `photo_latitude`, `photo_longitude` (nullable, reserved for EXIF flow)
+- `distance_to_site_meters`, `distance_photo_device_meters` (nullable)
+- `geo_validation_status`, `geo_validation_reason` (nullable)
 - `operational_status`, `remarks`, `captured_at`
 - when site inventory is configured, `inverter_id` refers to `site_inverters.id`
 

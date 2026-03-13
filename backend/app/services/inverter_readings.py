@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.site import SiteInverter
 from app.db.models.workorder import InverterReading, Media, WorkOrder
+from app.services.geo_validation import validate_capture_location
 
 ACCEPTED_WORKORDER_STATUSES = {"CUSTOMER_SIGNED", "CLOSED"}
 NON_OPERATIONAL_STATUSES = {"OFFLINE", "FAULT", "UNAVAILABLE"}
@@ -31,6 +32,11 @@ class CaptureReadingInput:
     photo_object_path: str
     photo_content_type: str
     photo_size_bytes: int
+    site_latitude: float | None = None
+    site_longitude: float | None = None
+    device_latitude: float | None = None
+    device_longitude: float | None = None
+    device_accuracy_meters: float | None = None
     power_kw: float | None = None
     day_kwh: float | None = None
 
@@ -165,6 +171,13 @@ def upsert_workorder_inverter_reading(
         current_reading_kwh=current_reading_kwh,
         operational_status=capture.operational_status,
     )
+    geo_validation = validate_capture_location(
+        site_latitude=capture.site_latitude,
+        site_longitude=capture.site_longitude,
+        device_latitude=capture.device_latitude,
+        device_longitude=capture.device_longitude,
+        device_accuracy_meters=capture.device_accuracy_meters,
+    )
 
     if reading is None:
         reading = InverterReading(
@@ -183,6 +196,12 @@ def upsert_workorder_inverter_reading(
     reading.is_baseline = computed.is_baseline
     reading.is_anomaly = computed.is_anomaly
     reading.anomaly_reason = computed.anomaly_reason
+    reading.device_latitude = capture.device_latitude
+    reading.device_longitude = capture.device_longitude
+    reading.device_accuracy_meters = capture.device_accuracy_meters
+    reading.distance_to_site_meters = geo_validation.distance_to_site_meters
+    reading.geo_validation_status = geo_validation.status
+    reading.geo_validation_reason = geo_validation.reason
     reading.operational_status = capture.operational_status
     reading.remarks = capture.remarks
     reading.captured_at = captured_at_iso

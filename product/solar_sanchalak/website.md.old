@@ -1,0 +1,335 @@
+# Solar Sanchalak Website Specification
+
+## Objective
+
+Build a professional SaaS landing page for **Solar Sanchalak**, a software platform currently under development by Nogginhaus Energy.
+
+The page serves three audiences:
+
+Primary:
+- investors
+- cloud credit programs (Google Cloud, accelerators)
+
+Secondary:
+- early pilot customers
+- EPC companies evaluating the platform
+
+The website should communicate that:
+
+- the product solves a real operational problem
+- the system architecture exists
+- the platform is actively being developed
+- the founder has a clear long-term vision
+
+The tone should be credible and professional, similar to early-stage SaaS companies such as Stripe, Linear, or Notion.
+
+---
+
+# Website Structure
+
+The website should consist of **one primary product page**.
+
+Optional additional pages may include:
+
+- About
+- Contact
+
+But the product story should live on a single page.
+
+Page layout:
+
+Hero  
+Problem  
+Solution  
+Product Capabilities  
+How It Works  
+Technology Architecture  
+Development Progress  
+Vision  
+Call to Action
+
+---
+
+# Section 1 — Hero
+
+Title
+
+Solar Sanchalak
+
+Subtitle
+
+Digitizing solar inspection and maintenance workflows.
+
+Description
+
+Solar Sanchalak is a mobile-first platform designed for solar EPC and operations teams to digitize inspection workflows, capture field data, generate signed reports, and maintain structured maintenance records across multiple solar sites.
+
+Primary button
+
+Request Early Access
+
+Secondary button
+
+Contact Us
+
+Small badge
+
+Currently in MVP Development
+
+---
+
+# Section 2 — The Problem
+
+Title
+
+Solar maintenance is still largely manual.
+
+Content
+
+Many solar EPC and operations teams still rely on paper inspection checklists, manual report preparation, and fragmented messaging tools to manage maintenance operations.
+
+This leads to:
+
+- inconsistent inspection records
+- delayed issue reporting
+- inefficient field coordination
+- lack of centralized visibility across solar sites
+
+As solar infrastructure grows, these manual processes become difficult to scale.
+
+---
+
+# Section 3 — The Solution
+
+Title
+
+A structured platform for solar maintenance operations.
+
+Content
+
+Solar Sanchalak provides a mobile-first platform for technicians and supervisors to manage inspection workflows and maintain centralized maintenance records.
+
+The platform enables organizations to:
+
+- standardize inspection procedures
+- capture structured maintenance data
+- collect field photos of equipment
+- digitally sign inspection reports
+- generate automated PDF documentation
+- notify supervisors of completed inspections
+
+The result is a centralized and searchable maintenance history for solar assets.
+
+---
+
+# Section 4 — Product Capabilities
+
+Title
+
+Core Platform Capabilities
+
+Feature cards should include:
+
+Multi-Tenant Organization Management  
+Companies can manage multiple solar sites within one system.
+
+User and Role Management  
+Supervisors and technicians have defined access and responsibilities.
+
+Site and Asset Registration  
+Solar plants and equipment can be tracked within the platform.
+
+Inspection Workflows  
+Technicians perform structured inspections through the mobile app.
+
+Photo Capture  
+Equipment issues can be documented with images during inspections.
+
+Digital Signatures  
+Inspection reports can be digitally signed by technicians.
+
+Automated PDF Reports  
+Inspection reports are generated automatically after completion.
+
+Supervisor Notifications  
+Supervisors receive alerts when inspections are completed.
+
+Cloud-Based Inspection History  
+All inspection records are stored securely in the cloud.
+
+---
+
+# Section 5 — How the Platform Works
+
+Title
+
+How Solar Sanchalak Works
+
+Step 1  
+Organizations register their solar sites and equipment.
+
+Step 2  
+Technicians perform inspections using the mobile application.
+
+Step 3  
+Photos, inspection data, and technician signatures are captured digitally.
+
+Step 4  
+Inspection reports are generated automatically as PDF documents.
+
+Step 5  
+Supervisors receive notifications and maintain centralized maintenance records.
+
+---
+
+# Section 6 — System Flow Diagram
+
+Display a simple system flow diagram illustrating the platform workflow.
+
+Example flow:
+
+Technician  
+↓  
+Mobile App  
+↓  
+Cloud APIs  
+↓  
+Database and Storage  
+↓  
+Generated Reports and Notifications  
+↓  
+Supervisor
+
+The goal of the diagram is to visually explain the product in a few seconds.
+
+---
+
+# Section 7 — Technology Architecture
+
+Title
+
+Cloud-Native Architecture
+
+Display a simple architecture block:
+
+FlutterFlow Mobile App  
+↓  
+Cloud Run APIs  
+↓  
+Firestore Database  
+↓  
+Cloud Storage
+
+Supporting text:
+
+Solar Sanchalak is built on Google Cloud using a modular service architecture designed for scalability and reliability.
+
+Technology stack includes:
+
+- FlutterFlow mobile application
+- Google Cloud Run
+- Firestore database
+- Cloud Storage
+- Firebase services
+- GitHub CI/CD pipeline
+
+---
+
+# Section 8 — Development Progress
+
+Title
+
+Current Development Progress
+
+Completed
+
+- tenant onboarding APIs
+- user management APIs
+- cloud infrastructure setup
+- CI/CD pipeline
+
+In Progress
+
+- inspection workflows
+- notifications engine
+- PDF report generation with signature support
+- technician mobile interface
+
+This section should show that the product is actively being built.
+
+---
+
+# Section 9 — Long-Term Vision
+
+Title
+
+Built for solar first
+
+Solar Sanchalak is the first product in a broader vision to digitize field-service maintenance workflows.
+
+The platform architecture is designed to support additional infrastructure maintenance domains in the future.
+
+However, the current focus remains solar operations and maintenance.
+
+---
+
+# Section 10 — Call To Action
+
+Title
+
+Request Early Access
+
+Description
+
+We are currently building the MVP and expect to collaborate with early pilot partners as the platform matures.
+
+Organizations interested in learning more can contact us for early access opportunities.
+
+Buttons
+
+Request Early Access  
+Contact Us
+
+---
+
+# Footer
+
+Display:
+
+Nogginhaus Energy India Ltd  
+Established 2011  
+
+Renewable Energy and Infrastructure Solutions
+
+---
+
+# Design Guidelines
+
+The page should follow modern SaaS design principles:
+
+- clean layout
+- large readable typography
+- simple section separation
+- minimal color palette
+- subtle feature cards
+- mobile responsive
+
+Avoid heavy animations or marketing language.
+
+The page should look credible and technical rather than promotional.
+
+---
+
+# Deliverables
+
+The implementation should produce:
+
+1. Landing page HTML
+2. CSS styles
+3. Mobile responsive layout
+4. Reusable sections where possible
+5. Simple diagram placeholders
+
+---
+
+# End of Specification
